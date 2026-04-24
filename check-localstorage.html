@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>检查本地存储</title>
+</head>
+<body>
+    <h1>本地存储检查</h1>
+    <div id="result"></div>
+    
+    <script>
+        const resultDiv = document.getElementById('result');
+        
+        // 检查本地存储
+        const user = localStorage.getItem('user');
+        
+        resultDiv.innerHTML = '<h2>用户信息：</h2>';
+        if (user) {
+            try {
+                const userObj = JSON.parse(user);
+                resultDiv.innerHTML += '<pre>' + JSON.stringify(userObj, null, 2) + '</pre>';
+            } catch (e) {
+                resultDiv.innerHTML += '<p>用户信息格式错误：' + e.message + '</p>';
+            }
+        } else {
+            resultDiv.innerHTML += '<p>本地存储中没有用户信息</p>';
+        }
+        
+        // 检查所有本地存储项
+        resultDiv.innerHTML += '<h2>所有本地存储项：</h2>';
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            resultDiv.innerHTML += '<p><strong>' + key + ':</strong> ' + value + '</p>';
+        }
+    </script>
+</body>
+</html>

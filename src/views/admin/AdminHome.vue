@@ -1,0 +1,956 @@
+<template>
+  <admin-layout>
+    <!-- Dashboard 数据看板 -->
+    <div class="dashboard">
+
+            <!-- 页面标题 -->
+            <div class="page-header">
+              <h1 class="page-title">控制台</h1>
+              <p class="page-description">欢迎使用小微企业供应商管理与风险评估系统</p>
+            </div>
+
+            <!-- 顶部统计卡片 -->
+            <el-row :gutter="20" class="stats-row">
+              <el-col :span="6">
+                <div class="stat-card stat-supplier">
+                  <div class="stat-icon">
+                    <el-icon><Box /></el-icon>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-number">{{ stats.supplierTotal }}</div>
+                    <div class="stat-label">供应商总数</div>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card stat-pending">
+                  <div class="stat-icon">
+                    <el-icon><Clock /></el-icon>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-number">{{ stats.pendingCount }}</div>
+                    <div class="stat-label">待审核供应商</div>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card stat-risk">
+                  <div class="stat-icon">
+                    <el-icon><Warning /></el-icon>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-number">{{ stats.highRiskCount }}</div>
+                    <div class="stat-label">高风险供应商</div>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="stat-card stat-user">
+                  <div class="stat-icon">
+                    <el-icon><User /></el-icon>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-number">{{ stats.userTotal }}</div>
+                    <div class="stat-label">系统用户总数</div>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <!-- 中间图表区域 -->
+            <el-row :gutter="20" class="charts-row">
+              <el-col :span="12">
+                <el-card class="chart-card">
+                  <template #header>
+                    <div class="chart-header">
+                      <span class="chart-title">供应商审核状态分布</span>
+                    </div>
+                  </template>
+                  <div class="chart-container" ref="auditChartRef"></div>
+                </el-card>
+              </el-col>
+              <el-col :span="12">
+                <el-card class="chart-card">
+                  <template #header>
+                    <div class="chart-header">
+                      <span class="chart-title">风险等级分布</span>
+                    </div>
+                  </template>
+                  <div class="chart-container" ref="riskChartRef"></div>
+                </el-card>
+              </el-col>
+            </el-row>
+
+            <!-- 底部柱状图 -->
+            <el-row class="charts-row">
+              <el-col :span="24">
+                <el-card class="chart-card bar-chart-card">
+                  <template #header>
+                    <div class="chart-header">
+                      <span class="chart-title">风险预警监控</span>
+                    </div>
+                  </template>
+                  <div class="chart-container bar-chart-container" ref="alertChartRef"></div>
+                </el-card>
+              </el-col>
+            </el-row>
+
+            <!-- 最新风险预警列表 -->
+            <el-card class="alert-list-card">
+              <template #header>
+                <div class="chart-header">
+                  <span class="chart-title">最新风险预警</span>
+                  <el-button type="primary" link @click="goToAlertManage">查看更多</el-button>
+                </div>
+              </template>
+              <el-table :data="alertList" style="width: 100%" stripe>
+                <el-table-column prop="supplierName" label="供应商名称" min-width="180" />
+                <el-table-column prop="alertType" label="预警类型" width="120">
+                  <template #default="scope">
+                    <el-tag :type="getAlertTypeTag(scope.row.alertType)" size="small">
+                      {{ scope.row.alertType }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="alertContent" label="预警内容" min-width="300" />
+                <el-table-column prop="level" label="风险等级" width="100">
+                  <template #default="scope">
+                    <el-tag :type="getRiskLevelTag(scope.row.level || scope.row.riskLevel)" size="small">
+                      {{ scope.row.level || scope.row.riskLevel || '未知' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="createTime" label="时间" width="180" />
+                <el-table-column label="状态" width="100">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.isRead === 0 ? 'danger' : 'info'" size="small">
+                      {{ scope.row.isRead === 0 ? '未读' : '已读' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+    </div>
+  </admin-layout>
+</template>
+
+<script setup>
+import AdminLayout from './layout/AdminLayout.vue'
+import { ref, computed, onMounted, watch, reactive, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
+import { House, Box, DataAnalysis, User, UserFilled, ArrowDown, Management, Clock, Warning, Document, Calendar, ShoppingCart, Star, Timer } from '@element-plus/icons-vue'
+import request from '../../api/request'
+
+const router = useRouter()
+const route = useRoute()
+
+const username = ref('')
+const userRole = ref('')
+const breadcrumbItem = ref('')
+
+
+
+// Dashboard 数据
+const stats = reactive({
+  supplierTotal: 0,
+  pendingCount: 0,
+  highRiskCount: 0,
+  userTotal: 0
+})
+
+const alertList = ref([])
+
+let auditChart = null
+let riskChart = null
+let alertChart = null
+const auditChartRef = ref(null)
+const riskChartRef = ref(null)
+const alertChartRef = ref(null)
+
+const activeMenu = computed(() => route.path)
+
+const updateBreadcrumb = (path) => {
+  const pathMap = {
+    '/admin/home': '控制台',
+    '/admin/supplier': '供应商管理',
+    '/admin/risk': '风险评估管理',
+    '/admin/alert': '风险预警管理',
+    '/admin/user': '用户管理',
+    '/admin/qual': '资质管理',
+    '/admin/annual': '年审管理',
+    '/admin/order': '订单管理',
+    '/admin/performance': '绩效考核',
+    '/admin/log': '系统操作日志'
+  }
+  breadcrumbItem.value = pathMap[path] || ''
+}
+
+// 监听路由变化，更新面包屑
+watch(() => route.path, (newPath) => {
+  updateBreadcrumb(newPath)
+}, { immediate: true })
+
+// Dashboard 方法
+const getAlertTypeTag = (type) => {
+  const map = {
+    '财务风险': 'warning',
+    '经营风险': 'danger',
+    '舆情风险': 'info'
+  }
+  return map[type] || 'info'
+}
+
+const getRiskLevelTag = (level) => {
+  const map = {
+    '高': 'danger',
+    '中': 'warning',
+    '低': 'success'
+  }
+  return map[level] || 'info'
+}
+
+const goToAlertManage = () => {
+  router.push('/admin/alert')
+}
+
+
+
+// 退出登录
+const logout = () => {
+  localStorage.removeItem('user')
+  localStorage.removeItem('token')
+  ElMessage.success('退出登录成功')
+  router.push('/login')
+}
+
+const fetchStats = async () => {
+  try {
+    const [supplierRes, riskRes, userRes] = await Promise.all([
+      request.get('/supplier/list', { params: { pageNum: 1, pageSize: 1000 } }),
+      request.get('/risk/list', { params: { pageNum: 1, pageSize: 1000 } }),
+      request.get('/user/list', { params: { pageNum: 1, pageSize: 1000 } })
+    ])
+
+    const suppliers = supplierRes.data?.records || []
+    const risks = riskRes.data?.records || []
+    const users = userRes.data?.records || []
+
+    stats.supplierTotal = supplierRes.data?.total || suppliers.length
+    stats.pendingCount = suppliers.filter(s => s.auditStatus === 0).length
+    stats.highRiskCount = risks.filter(r => r.level === '高' || r.riskLevel === '高').length
+    stats.userTotal = userRes.data?.total || users.length
+
+    updateAuditChart(suppliers)
+    updateRiskChart(risks)
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
+
+const fetchAlertList = async () => {
+  try {
+    const res = await request.get('/alert/admin/list', { params: { pageNum: 1, pageSize: 10 } })
+    alertList.value = res.data?.records || []
+    updateAlertChart(alertList.value)
+  } catch (error) {
+    console.error('获取预警列表失败:', error)
+  }
+}
+
+const updateAuditChart = (suppliers) => {
+  if (!auditChart) {
+    auditChart = echarts.init(auditChartRef.value)
+  }
+
+  const pending = suppliers.filter(s => s.auditStatus === 0).length
+  const approved = suppliers.filter(s => s.auditStatus === 1).length
+  const rejected = suppliers.filter(s => s.auditStatus === 2).length
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'middle'
+    },
+    color: ['#e6a23c', '#67c23a', '#f56c6c'],
+    series: [
+      {
+        name: '审核状态',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 16,
+            fontWeight: 'bold'
+          }
+        },
+        data: [
+          { value: pending, name: '待审核' },
+          { value: approved, name: '已通过' },
+          { value: rejected, name: '已驳回' }
+        ]
+      }
+    ]
+  }
+
+  auditChart.setOption(option)
+}
+
+const updateRiskChart = (risks) => {
+  if (!riskChart) {
+    riskChart = echarts.init(riskChartRef.value)
+  }
+
+  const low = risks.filter(r => r.level === '低' || r.riskLevel === '低').length
+  const medium = risks.filter(r => r.level === '中' || r.riskLevel === '中').length
+  const high = risks.filter(r => r.level === '高' || r.riskLevel === '高').length
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'middle'
+    },
+    color: ['#67c23a', '#e6a23c', '#f56c6c'],
+    series: [
+      {
+        name: '风险等级',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 16,
+            fontWeight: 'bold'
+          }
+        },
+        data: [
+          { value: low, name: '低风险' },
+          { value: medium, name: '中风险' },
+          { value: high, name: '高风险' }
+        ]
+      }
+    ]
+  }
+
+  riskChart.setOption(option)
+}
+
+const updateAlertChart = (alerts) => {
+  if (!alertChart) {
+    alertChart = echarts.init(alertChartRef.value)
+  }
+
+  const low = alerts.filter(a => a.level === '低' || a.riskLevel === '低').length
+  const medium = alerts.filter(a => a.level === '中' || a.riskLevel === '中').length
+  const high = alerts.filter(a => a.level === '高' || a.riskLevel === '高').length
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['低风险', '中风险', '高风险'],
+      axisLabel: {
+        color: '#606266'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        color: '#606266'
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#dcdfe6'
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f0f0'
+        }
+      }
+    },
+    series: [
+      {
+        name: '预警数量',
+        type: 'bar',
+        barWidth: '50%',
+        data: [
+          {
+            value: low,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#67c23a' },
+                { offset: 1, color: '#95d475' }
+              ]),
+              borderRadius: [8, 8, 0, 0]
+            }
+          },
+          {
+            value: medium,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#e6a23c' },
+                { offset: 1, color: '#f0b366' }
+              ]),
+              borderRadius: [8, 8, 0, 0]
+            }
+          },
+          {
+            value: high,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#f56c6c' },
+                { offset: 1, color: '#f89e9e' }
+              ]),
+              borderRadius: [8, 8, 0, 0]
+            }
+          }
+        ],
+        label: {
+          show: true,
+          position: 'top',
+          color: '#606266'
+        }
+      }
+    ]
+  }
+
+  alertChart.setOption(option)
+}
+
+const handleResize = () => {
+  auditChart?.resize()
+  riskChart?.resize()
+  alertChart?.resize()
+}
+
+onMounted(() => {
+  const userStr = localStorage.getItem('user')
+  if (!userStr) {
+    ElMessage.error('请先登录')
+    router.push('/login')
+    return
+  }
+
+  const user = JSON.parse(userStr)
+  username.value = user.username || '管理员'
+  userRole.value = user.role || 'admin'
+
+  if (userRole.value !== 'ADMIN') {
+    ElMessage.error('您没有权限访问该页面')
+    router.push('/home')
+  }
+
+  // 加载 Dashboard 数据
+  fetchStats()
+  fetchAlertList()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  auditChart?.dispose()
+  riskChart?.dispose()
+  alertChart?.dispose()
+})
+
+const handleCommand = (command) => {
+  switch (command) {
+    case 'profile':
+      // 跳转到个人中心（修改密码页面）
+      router.push('/admin/profile')
+      break
+    case 'logout':
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      ElMessage.success('退出登录成功')
+      router.push('/login')
+      break
+  }
+}
+</script>
+
+<style scoped>
+.admin-container {
+  height: 100vh;
+  font-family: 'Microsoft YaHei', Arial, sans-serif;
+}
+
+.el-container {
+  height: 100%;
+}
+
+/* 左侧菜单 */
+.aside-container {
+  background-color: #304156;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.logo {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2b3a4a;
+  padding: 0 20px;
+  border-bottom: 1px solid #253341;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #409EFF, #667eea);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+.logo-icon-item {
+  font-size: 20px;
+  color: white;
+}
+
+.logo-text {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.admin-menu {
+  border-right: none;
+  height: calc(100vh - 70px);
+  padding-top: 10px;
+}
+
+.menu-icon {
+  font-size: 18px;
+  margin-right: 12px;
+}
+
+.menu-text {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* 主容器 */
+.main-container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部导航 */
+.header-container {
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 21, 41, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  height: 70px;
+  transition: all 0.3s ease;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+}
+
+.system-logo {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.system-icon {
+  font-size: 20px;
+  color: #409EFF;
+  margin-right: 10px;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.breadcrumb {
+  font-size: 12px;
+  color: #909399;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-dropdown {
+  cursor: pointer;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 20px;
+  transition: background-color 0.3s ease;
+}
+
+.user-info:hover {
+  background-color: #f5f7fa;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409EFF, #667eea);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+
+.avatar-icon {
+  font-size: 16px;
+  color: white;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  margin-right: 10px;
+  min-width: 80px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #909399;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.arrow {
+  font-size: 12px;
+  color: #909399;
+  transition: transform 0.3s ease;
+}
+
+.user-dropdown:hover .arrow {
+  transform: rotate(180deg);
+}
+
+/* 内容区 */
+.content-container {
+  background-color: #f5f7fa;
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 1200px) {
+  .aside-container {
+    width: 200px !important;
+  }
+  
+  .logo-text {
+    font-size: 16px;
+  }
+  
+  .menu-text {
+    font-size: 13px;
+  }
+  
+  .header-container {
+    padding: 0 20px;
+  }
+  
+  .page-title {
+    font-size: 16px;
+  }
+  
+  .content-container {
+    padding: 20px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .aside-container {
+    width: 64px !important;
+  }
+  
+  .logo-text {
+    display: none;
+  }
+  
+  .logo {
+    justify-content: center;
+  }
+  
+  .menu-text {
+    display: none;
+  }
+  
+  .menu-icon {
+    margin-right: 0;
+  }
+  
+  .header-left {
+    flex: 1;
+  }
+  
+  .system-logo {
+    margin-bottom: 0;
+  }
+  
+  .breadcrumb {
+    display: none;
+  }
+  
+  .user-details {
+    display: none;
+  }
+  
+  .user-info {
+    padding: 8px;
+  }
+}
+
+/* Dashboard 样式 */
+.dashboard {
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 8px 0;
+}
+
+.page-description {
+  font-size: 14px;
+  color: #909399;
+  margin: 0;
+}
+
+.stats-row {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+}
+
+.stat-icon .el-icon {
+  font-size: 28px;
+  color: #fff;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-supplier {
+  background: linear-gradient(135deg, #409eff 0%, #6aa9ff 100%);
+}
+
+.stat-pending {
+  background: linear-gradient(135deg, #e6a23c 0%, #f0b366 100%);
+}
+
+.stat-risk {
+  background: linear-gradient(135deg, #f56c6c 0%, #f89e9e 100%);
+}
+
+.stat-user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.charts-row {
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border: none;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.chart-container {
+  height: 280px;
+  width: 100%;
+}
+
+.bar-chart-card .chart-container {
+  height: 250px;
+}
+
+.alert-list-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border: none;
+}
+
+:deep(.el-table th) {
+  background-color: #fafafa;
+  color: #606266;
+  font-weight: 500;
+}
+
+:deep(.el-table__row--unread) {
+  background-color: #fff5f5;
+}
+
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    margin-right: 12px;
+  }
+
+  .stat-icon .el-icon {
+    font-size: 22px;
+  }
+
+  .stat-number {
+    font-size: 24px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+}
+</style>

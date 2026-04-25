@@ -251,8 +251,38 @@ const fetchStats = async () => {
 
 const fetchAlertList = async () => {
   try {
-    const res = await request.get('/alert/admin/list', { params: { pageNum: 1, pageSize: 10 } })
-    alertList.value = res.data?.records || []
+    // 获取足够多的预警数据以便过滤
+    const res = await request.get('/alert/admin/list', { params: { pageNum: 1, pageSize: 1000 } })
+    const allAlerts = res.data?.records || []
+    
+    // 过滤出风险等级为中或高的预警
+    const filteredAlerts = allAlerts.filter(alert => {
+      const level = alert.level || alert.riskLevel
+      return level === '中' || level === '高'
+    })
+    
+    // 按供应商分组，只保留每个供应商最新的预警
+    const supplierAlertsMap = new Map()
+    
+    filteredAlerts.forEach(alert => {
+      const supplierName = alert.supplierName
+      if (!supplierAlertsMap.has(supplierName)) {
+        supplierAlertsMap.set(supplierName, alert)
+      } else {
+        const existingAlert = supplierAlertsMap.get(supplierName)
+        // 比较创建时间，保留最新的
+        if (new Date(alert.createTime) > new Date(existingAlert.createTime)) {
+          supplierAlertsMap.set(supplierName, alert)
+        }
+      }
+    })
+    
+    // 将 Map 转换为数组并按创建时间倒序排序
+    const finalAlerts = Array.from(supplierAlertsMap.values())
+    finalAlerts.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+    
+    // 只显示前10条
+    alertList.value = finalAlerts.slice(0, 10)
     updateAlertChart(alertList.value)
   } catch (error) {
     console.error('获取预警列表失败:', error)

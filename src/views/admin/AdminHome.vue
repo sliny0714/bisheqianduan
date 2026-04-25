@@ -402,7 +402,7 @@ const updateAlertChart = (alerts) => {
     alertChart = echarts.init(alertChartRef.value)
   }
 
-  const low = alerts.filter(a => a.level === '低' || a.riskLevel === '低').length
+  // 只统计中高风险（因为传入的 alerts 已经是过滤后的中高风险数据）
   const medium = alerts.filter(a => a.level === '中' || a.riskLevel === '中').length
   const high = alerts.filter(a => a.level === '高' || a.riskLevel === '高').length
 
@@ -421,7 +421,7 @@ const updateAlertChart = (alerts) => {
     },
     xAxis: {
       type: 'category',
-      data: ['低风险', '中风险', '高风险'],
+      data: ['中风险', '高风险'],
       axisLabel: {
         color: '#606266'
       },
@@ -453,16 +453,6 @@ const updateAlertChart = (alerts) => {
         type: 'bar',
         barWidth: '50%',
         data: [
-          {
-            value: low,
-            itemStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: '#67c23a' },
-                { offset: 1, color: '#95d475' }
-              ]),
-              borderRadius: [8, 8, 0, 0]
-            }
-          },
           {
             value: medium,
             itemStyle: {

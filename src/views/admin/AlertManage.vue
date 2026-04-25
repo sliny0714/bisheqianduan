@@ -170,39 +170,57 @@ onMounted(() => {
 const getAlertList = async () => {
   loading.value = true
   try {
-    const res = await request.get('/alert/admin/list', {
+    // 从风险评估接口获取数据，与主页风险预警使用相同的数据源
+    const res = await request.get('/risk/list', {
       params: {
         pageNum: 1, // 获取所有数据以便过滤
         pageSize: 1000, // 设置足够大的值
-        supplierName: searchKeyword.value,
-        isRead: isReadFilter.value
+        supplierName: searchKeyword.value
       }
     })
     
     if (res.code === 200) {
-      const allAlerts = res.data.records || []
+      const riskAssessments = res.data.records || []
       
-      // 按供应商分组，只保留每个供应商最新的预警
-      const supplierAlertsMap = new Map()
+      // 过滤出风险等级为中或高的评估结果
+      const filteredAssessments = riskAssessments.filter(assessment => {
+        const level = assessment.level
+        return level === '中' || level === '高'
+      })
       
-      allAlerts.forEach(alert => {
-        const supplierName = alert.supplierName
-        if (!supplierAlertsMap.has(supplierName)) {
-          supplierAlertsMap.set(supplierName, alert)
+      // 按供应商分组，只保留每个供应商最新的评估结果
+      const supplierAssessmentsMap = new Map()
+      
+      filteredAssessments.forEach(assessment => {
+        const supplierName = assessment.supplierName
+        if (!supplierAssessmentsMap.has(supplierName)) {
+          supplierAssessmentsMap.set(supplierName, assessment)
         } else {
-          const existingAlert = supplierAlertsMap.get(supplierName)
-          // 比较创建时间，保留最新的
-          if (new Date(alert.createTime) > new Date(existingAlert.createTime)) {
-            supplierAlertsMap.set(supplierName, alert)
+          const existingAssessment = supplierAssessmentsMap.get(supplierName)
+          // 比较评估时间，保留最新的
+          if (new Date(assessment.assessTime || assessment.createTime) > new Date(existingAssessment.assessTime || existingAssessment.createTime)) {
+            supplierAssessmentsMap.set(supplierName, assessment)
           }
         }
       })
       
       // 将 Map 转换为数组
-      const filteredAlerts = Array.from(supplierAlertsMap.values())
+      const finalAssessments = Array.from(supplierAssessmentsMap.values())
       
-      // 按创建时间倒序排序
-      filteredAlerts.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+      // 按评估时间倒序排序
+      finalAssessments.sort((a, b) => new Date(b.assessTime || b.createTime) - new Date(a.assessTime || a.createTime))
+      
+      // 转换为预警数据结构
+      const filteredAlerts = finalAssessments.map(assessment => ({
+        id: assessment.id,
+        supplierId: assessment.supplierId,
+        supplierName: assessment.supplierName,
+        level: assessment.level,
+        alertType: assessment.level + '风险预警',
+        alertContent: `供应商【${assessment.supplierName}】风险等级为【${assessment.level}】，请及时处理！`,
+        isRead: 0, // 默认未读
+        createTime: assessment.assessTime || assessment.createTime
+      }))
       
       // 处理分页
       const start = (currentPage.value - 1) * pageSize.value
@@ -245,25 +263,14 @@ const handleDetail = (row) => {
 
 // 标记已读
 const handleMarkRead = async (row) => {
-  try {
-    await request.post(`/alert/admin/read/${row.id}`)
-    ElMessage.success('标记成功')
-    getAlertList()
-  } catch (error) {
-    ElMessage.error('操作失败')
-  }
+  // 由于现在使用的是风险评估数据，不需要标记已读功能
+  ElMessage.info('当前使用的是风险评估数据，不需要标记已读')
 }
 
 const handleMarkReadInDialog = async () => {
-  if (!currentAlert.value) return
-  try {
-    await request.post(`/alert/admin/read/${currentAlert.value.id}`)
-    ElMessage.success('标记成功')
-    detailDialogVisible.value = false
-    getAlertList()
-  } catch (error) {
-    ElMessage.error('操作失败')
-  }
+  // 由于现在使用的是风险评估数据，不需要标记已读功能
+  ElMessage.info('当前使用的是风险评估数据，不需要标记已读')
+  detailDialogVisible.value = false
 }
 
 // ====================== 新增：风险等级颜色 ======================

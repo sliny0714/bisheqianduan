@@ -251,35 +251,47 @@ const fetchStats = async () => {
 
 const fetchAlertList = async () => {
   try {
-    // 获取足够多的预警数据以便过滤
-    const res = await request.get('/alert/admin/list', { params: { pageNum: 1, pageSize: 1000 } })
-    const allAlerts = res.data?.records || []
+    // 从风险评估接口获取数据，与风险评估饼图使用相同的数据源
+    const res = await request.get('/risk/list', { params: { pageNum: 1, pageSize: 1000 } })
+    const riskAssessments = res.data?.records || []
     
-    // 过滤出风险等级为中或高的预警
-    const filteredAlerts = allAlerts.filter(alert => {
-      const level = alert.level || alert.riskLevel
+    // 过滤出风险等级为中或高的评估结果
+    const filteredAssessments = riskAssessments.filter(assessment => {
+      const level = assessment.level
       return level === '中' || level === '高'
     })
     
-    // 按供应商分组，只保留每个供应商最新的预警
-    const supplierAlertsMap = new Map()
+    // 按供应商分组，只保留每个供应商最新的评估结果
+    const supplierAssessmentsMap = new Map()
     
-    filteredAlerts.forEach(alert => {
-      const supplierName = alert.supplierName
-      if (!supplierAlertsMap.has(supplierName)) {
-        supplierAlertsMap.set(supplierName, alert)
+    filteredAssessments.forEach(assessment => {
+      const supplierName = assessment.supplierName
+      if (!supplierAssessmentsMap.has(supplierName)) {
+        supplierAssessmentsMap.set(supplierName, assessment)
       } else {
-        const existingAlert = supplierAlertsMap.get(supplierName)
-        // 比较创建时间，保留最新的
-        if (new Date(alert.createTime) > new Date(existingAlert.createTime)) {
-          supplierAlertsMap.set(supplierName, alert)
+        const existingAssessment = supplierAssessmentsMap.get(supplierName)
+        // 比较评估时间，保留最新的
+        if (new Date(assessment.assessTime || assessment.createTime) > new Date(existingAssessment.assessTime || existingAssessment.createTime)) {
+          supplierAssessmentsMap.set(supplierName, assessment)
         }
       }
     })
     
-    // 将 Map 转换为数组并按创建时间倒序排序
-    const finalAlerts = Array.from(supplierAlertsMap.values())
-    finalAlerts.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+    // 将 Map 转换为数组并按评估时间倒序排序
+    const finalAssessments = Array.from(supplierAssessmentsMap.values())
+    finalAssessments.sort((a, b) => new Date(b.assessTime || b.createTime) - new Date(a.assessTime || a.createTime))
+    
+    // 转换为预警数据结构
+    const finalAlerts = finalAssessments.map(assessment => ({
+      id: assessment.id,
+      supplierId: assessment.supplierId,
+      supplierName: assessment.supplierName,
+      level: assessment.level,
+      alertType: assessment.level + '风险预警',
+      alertContent: `供应商【${assessment.supplierName}】风险等级为【${assessment.level}】，请及时处理！`,
+      isRead: 0, // 默认未读
+      createTime: assessment.assessTime || assessment.createTime
+    }))
     
     // 只显示前10条
     alertList.value = finalAlerts.slice(0, 10)

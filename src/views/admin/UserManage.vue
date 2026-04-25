@@ -26,9 +26,19 @@
               <el-icon><Search /></el-icon> 搜索
             </el-button>
           </div>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon> 添加用户
-          </el-button>
+          <div class="action-bar">
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon> 添加用户
+            </el-button>
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -152,8 +162,9 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Plus, Edit, Delete, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -255,6 +266,36 @@ const handleDelete = (row) => {
     ElMessage.success('删除成功')
     getUserList()
   })
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (userList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  // 准备导出数据
+  const exportData = userList.value.map(item => ({
+    'ID': item.id,
+    '用户名': item.username,
+    '真实姓名': item.realName,
+    '角色': item.role === 'ADMIN' ? '管理员' : '普通用户',
+    '状态': item.status === 1 ? '启用' : '禁用',
+    '创建时间': item.createTime || ''
+  }))
+  
+  // 创建工作簿和工作表
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, '用户列表')
+  
+  // 导出文件
+  XLSX.writeFile(wb, `用户列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 </script>
 

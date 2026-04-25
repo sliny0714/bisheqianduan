@@ -59,6 +59,14 @@
           </div>
           <div class="action-bar">
             <el-button type="primary" @click="handleAdd"><el-icon><Plus /></el-icon>新增</el-button>
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
       </template>
@@ -294,8 +302,9 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const currentPage = ref(1)
@@ -601,6 +610,37 @@ const getAuditStatusText = (s) => {
   if (s === 1) return '已通过'
   if (s === 2) return '已驳回'
   return '未知'
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (suppliersList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  // 准备导出数据
+  const exportData = suppliersList.value.map(item => ({
+    'ID': item.id,
+    '供应商名称': item.name,
+    '法人': item.legalRep,
+    '提交人': item.createByName,
+    '审核状态': getAuditStatusText(item.auditStatus),
+    '创建时间': item.createTime || '',
+    '更新时间': item.updateTime || ''
+  }))
+  
+  // 创建工作簿和工作表
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, '供应商列表')
+  
+  // 导出文件
+  XLSX.writeFile(wb, `供应商列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 
 onMounted(getSuppliersList)

@@ -39,6 +39,16 @@
               <el-icon><Search /></el-icon> 搜索
             </el-button>
           </div>
+          <div class="action-bar">
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -163,8 +173,9 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, View } from '@element-plus/icons-vue'
+import { Search, View, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import * as XLSX from 'xlsx'
 
 // 加载状态
 const loading = ref(false)
@@ -296,6 +307,36 @@ const getRiskLevelType = (level) => {
     case '高': return 'danger'
     default: return 'info'
   }
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (riskList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  // 准备导出数据
+  const exportData = riskList.value.map(item => ({
+    '评估ID': item.id,
+    '供应商名称': item.supplierName,
+    '风险分数': item.score ?? '-',
+    '风险等级': item.level,
+    '评估摘要': item.summary || '',
+    '评估时间': item.assessTime || '-'
+  }))
+  
+  // 创建工作簿和工作表
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, '风险评估列表')
+  
+  // 导出文件
+  XLSX.writeFile(wb, `风险评估列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 </script>
 

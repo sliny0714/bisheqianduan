@@ -10,49 +10,17 @@
       <p class="page-description">仅展示风险等级为【中/高】的供应商预警</p>
     </div>
 
-    <div class="statistic-bar">
-      <el-card class="statistic-card">
-        <div class="statistic-item">
-          <span class="statistic-label">未读预警数：</span>
-          <span class="statistic-value">{{ unreadCount }}</span>
-        </div>
-      </el-card>
-    </div>
-
     <el-card class="table-card">
       <el-table
         v-loading="loading"
         :data="warningsList"
         border
         stripe
-        :row-class-name="rowClassName"
       >
         <el-table-column prop="supplierName" label="供应商名称" min-width="180" />
         <el-table-column prop="alertType" label="预警类型" width="120" />
         <el-table-column prop="alertContent" label="预警内容" min-width="300" />
-        <el-table-column prop="isRead" label="状态" width="100">
-          <template #default="scope">
-            <el-tag
-              :type="scope.row.isRead === 0 ? 'danger' : 'info'"
-              effect="light"
-            >
-              {{ scope.row.isRead === 0 ? '未读' : '已读' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="scope">
-            <el-button
-              v-if="scope.row.isRead === 0"
-              type="primary"
-              size="small"
-              @click="markAsRead(scope.row.id)"
-            >
-              标记已读
-            </el-button>
-          </template>
-        </el-table-column>
       </el-table>
 
       <div class="empty-text" v-if="!loading && warningsList.length === 0">
@@ -85,7 +53,6 @@ const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 const warningsList = ref([])
-const unreadCount = ref(0)
 
 onMounted(() => {
   getList()
@@ -114,11 +81,8 @@ const getList = async () => {
       })
       warningsList.value = Array.from(uniqueWarningMap.values())
 
-      // 2. 关键修复：用去重后的列表长度更新分页的 total
+      // 2. 用去重后的列表长度更新分页的 total
       total.value = warningsList.value.length
-
-      // 3. 关键修复：根据当前列表里未读的预警数量，更新统计数字
-      unreadCount.value = warningsList.value.filter(item => item.isRead === 0).length
     }
   } catch (error) {
     ElMessage.error('获取预警列表失败')
@@ -127,21 +91,6 @@ const getList = async () => {
     loading.value = false
   }
 }
-
-const markAsRead = async (id) => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'))
-    await request.get('/alert/markRead', {
-      params: { id, userId: user.id }
-    })
-    ElMessage.success('标记成功')
-    getList() // 刷新列表和统计
-  } catch (err) {
-    ElMessage.error('操作失败')
-  }
-}
-
-const rowClassName = ({ row }) => row.isRead === 0 ? 'unread-row' : ''
 </script>
 
 <style scoped>

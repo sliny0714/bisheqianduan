@@ -22,10 +22,6 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-select v-model="isReadFilter" placeholder="状态" clearable style="width: 150px">
-              <el-option label="未读" :value="0" />
-              <el-option label="已读" :value="1" />
-            </el-select>
             <el-button type="primary" @click="handleSearch">
               <el-icon><Search /></el-icon> 搜索
             </el-button>
@@ -58,18 +54,8 @@
         </el-table-column>
 
         <el-table-column prop="alertContent" label="预警内容" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="isRead" label="状态" width="100">
-          <template #default="scope">
-            <el-tag
-              :type="scope.row.isRead === 0 ? 'danger' : 'info'"
-              effect="light"
-            >
-              {{ scope.row.isRead === 0 ? '未读' : '已读' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="scope">
             <el-button
               type="primary"
@@ -77,14 +63,6 @@
               @click="handleDetail(scope.row)"
             >
               <el-icon><View /></el-icon> 详情
-            </el-button>
-            <el-button
-              v-if="scope.row.isRead === 0"
-              type="success"
-              size="small"
-              @click="handleMarkRead(scope.row)"
-            >
-              <el-icon><Check /></el-icon> 已读
             </el-button>
           </template>
         </el-table-column>
@@ -157,7 +135,6 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const searchKeyword = ref('')
-const isReadFilter = ref(null)
 const detailDialogVisible = ref(false)
 const currentAlert = ref(null)
 const alertList = ref([])
@@ -259,18 +236,6 @@ const handleCurrentChange = (current) => {
 const handleDetail = (row) => {
   currentAlert.value = row
   detailDialogVisible.value = true
-}
-
-// 标记已读
-const handleMarkRead = async (row) => {
-  // 由于现在使用的是风险评估数据，不需要标记已读功能
-  ElMessage.info('当前使用的是风险评估数据，不需要标记已读')
-}
-
-const handleMarkReadInDialog = async () => {
-  // 由于现在使用的是风险评估数据，不需要标记已读功能
-  ElMessage.info('当前使用的是风险评估数据，不需要标记已读')
-  detailDialogVisible.value = false
 }
 
 // ====================== 新增：风险等级颜色 ======================

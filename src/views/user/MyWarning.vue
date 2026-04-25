@@ -11,6 +11,12 @@
     </div>
 
     <el-card class="table-card">
+      <template #header>
+        <div class="card-header">
+          <span>预警记录</span>
+          <el-button type="success" @click="exportToExcel" :icon="Download">导出</el-button>
+        </div>
+      </template>
       <el-table
         v-loading="loading"
         :data="warningsList"
@@ -45,8 +51,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import UserLayout from './layout/UserLayout.vue'
+import * as XLSX from 'xlsx'
 
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -89,6 +97,38 @@ const getList = async () => {
     console.error(error)
   } finally {
     loading.value = false
+  }
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    if (warningsList.value.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = warningsList.value.map(warning => ({
+      '供应商名称': warning.supplierName,
+      '预警类型': warning.alertType,
+      '预警内容': warning.alertContent,
+      '创建时间': warning.createTime
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '风险预警记录')
+    
+    // 导出文件
+    const fileName = `风险预警记录_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
   }
 }
 </script>

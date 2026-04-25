@@ -12,6 +12,12 @@
     </div>
 
     <el-card class="table-card">
+      <template #header>
+        <div class="card-header">
+          <span>订单记录</span>
+          <el-button type="success" @click="exportToExcel" :icon="Download">导出</el-button>
+        </div>
+      </template>
       <el-table v-loading="loading" :data="orderList" border stripe>
         <el-table-column prop="orderNo" label="订单编号" min-width="220" />
         <el-table-column prop="supplierName" label="供应商名称" min-width="180" />
@@ -102,8 +108,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import UserLayout from './layout/UserLayout.vue'
 import { getMyOrderList, getAlipayForm } from '../../api/user/business'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const paying = ref(false)
@@ -254,6 +262,41 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (current) => {
   currentPage.value = current
   getOrders()
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    if (orderList.value.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = orderList.value.map(order => ({
+      '订单编号': order.orderNo,
+      '供应商名称': order.supplierName,
+      '订单类型': order.orderType,
+      '金额': `¥${order.amount}`,
+      '支付状态': order.status === 1 ? '已支付' : '未支付',
+      '支付时间': order.payTime || '—',
+      '创建时间': order.createTime
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '订单记录')
+    
+    // 导出文件
+    const fileName = `订单记录_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
 }
 </script>
 

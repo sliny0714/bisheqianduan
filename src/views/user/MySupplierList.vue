@@ -32,6 +32,10 @@
         <el-icon><Refresh /></el-icon>
         重置
       </el-button>
+      <el-button type="success" @click="exportToExcel" style="margin-left: 12px;">
+        <el-icon><Download /></el-icon>
+        导出
+      </el-button>
       <el-button type="primary" @click="handleAdd" style="margin-left: auto;">
         <el-icon><Plus /></el-icon>
         新增供应商
@@ -126,10 +130,11 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Plus, View, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, View, Edit, Delete, Search, Refresh, Download } from '@element-plus/icons-vue'
 import { getMySupplierList, deleteSupplier } from '../../api/user/supplier'
 import request from '../../api/request'
 import UserLayout from './layout/UserLayout.vue'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 
@@ -266,6 +271,49 @@ const getAuditStatusType = (status) => {
     case 1: return 'success'
     case 2: return 'danger'
     default: return 'info'
+  }
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    // 获取所有供应商数据
+    const user = JSON.parse(localStorage.getItem('user'))
+    const res = await request.get('/supplier/my/list', {
+      params: { pageNum: 1, pageSize: 1000, userId: user.id || 1, name: searchKeyword.value }
+    })
+    
+    const suppliers = res.data?.records || []
+    
+    if (suppliers.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = suppliers.map(supplier => ({
+      'ID': supplier.id,
+      '供应商名称': supplier.name,
+      '所属行业': supplier.industry,
+      '联系人': supplier.contactPerson,
+      '联系电话': supplier.contactPhone,
+      '审核状态': getAuditStatusText(supplier.auditStatus),
+      '提交时间': supplier.createTime
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '供应商列表')
+    
+    // 导出文件
+    const fileName = `供应商列表_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
   }
 }
 </script>

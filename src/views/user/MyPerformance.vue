@@ -51,6 +51,7 @@
       <template #header>
         <div class="card-header">
           <span>历史考核记录</span>
+          <el-button type="success" @click="exportToExcel" :icon="Download">导出</el-button>
         </div>
       </template>
       <el-table v-loading="loading" :data="performanceList" border stripe>
@@ -91,8 +92,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { Download } from '@element-plus/icons-vue'
 import { getMyPerformance, getMyPerformanceHistory } from '../../api/user/business'
 import UserLayout from './layout/UserLayout.vue'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const currentPerformance = ref(null)
@@ -153,6 +156,42 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (current) => {
   currentPage.value = current
   getPerformanceHistory()
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    if (performanceList.value.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = performanceList.value.map(performance => ({
+      '供应商名称': performance.supplierName,
+      '质量评分': performance.qualityScore,
+      '交付评分': performance.deliveryScore,
+      '服务评分': performance.serviceScore,
+      '综合总分': performance.totalScore,
+      '评级': performance.level || '待评',
+      '评估人': performance.assessor || '系统',
+      '评估时间': performance.createTime
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '绩效记录')
+    
+    // 导出文件
+    const fileName = `绩效记录_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
 }
 </script>
 

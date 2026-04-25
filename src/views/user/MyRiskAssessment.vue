@@ -14,7 +14,10 @@
       <template #header>
         <div class="card-header">
           <span>评估记录</span>
-          <el-button type="primary" link @click="handleRefresh" :icon="Refresh">刷新</el-button>
+          <div class="header-buttons">
+            <el-button type="success" @click="exportToExcel" :icon="Download">导出</el-button>
+            <el-button type="primary" link @click="handleRefresh" :icon="Refresh">刷新</el-button>
+          </div>
         </div>
       </template>
 
@@ -69,9 +72,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import UserLayout from './layout/UserLayout.vue'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const detailDialogVisible = ref(false)
@@ -152,6 +156,40 @@ const getRiskLevelType = (row) => {
   if (level === '中') return 'warning'
   if (level === '高') return 'danger'
   return 'info'
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    if (assessmentList.value.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = assessmentList.value.map(assessment => ({
+      '供应商名称': assessment.supplierName,
+      '资质文件': assessment.qualificationFile ? '已上传' : '未上传',
+      '风险分数': assessment.score || '—',
+      '风险等级': assessment.level || '—',
+      '评估摘要': assessment.summary || '暂无评估摘要',
+      '评估时间': assessment.assessTime || '—'
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '风险评估记录')
+    
+    // 导出文件
+    const fileName = `风险评估记录_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
 }
 </script>
 

@@ -12,6 +12,10 @@
     </div>
 
     <div class="action-bar">
+      <el-button type="success" @click="exportToExcel" style="margin-right: 12px;">
+        <el-icon><Download /></el-icon>
+        导出
+      </el-button>
       <el-button type="primary" @click="handleSubmit">
         <el-icon><DocumentAdd /></el-icon>
         提交{{ currentYear }}年年审
@@ -133,10 +137,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DocumentAdd } from '@element-plus/icons-vue'
+import { DocumentAdd, Download } from '@element-plus/icons-vue'
 import { getMyAnnualReviewList, submitAnnualReview, withdrawAnnualReview } from '../../api/user/business'
 import { getMySupplierList } from '../../api/user/supplier'
 import UserLayout from './layout/UserLayout.vue'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 const currentYear = new Date().getFullYear()
@@ -271,6 +276,40 @@ const handleDelete = async (id) => {
 const handleViewResult = (row) => {
   currentReview.value = row
   resultDialogVisible.value = true
+}
+
+// 导出Excel功能
+const exportToExcel = async () => {
+  try {
+    if (annualReviewList.value.length === 0) {
+      ElMessage.info('没有数据可导出')
+      return
+    }
+    
+    // 转换数据格式
+    const exportData = annualReviewList.value.map(review => ({
+      '供应商名称': review.supplierName,
+      '年审年份': review.reviewYear,
+      '状态': getStatusText(review.status),
+      '提交时间': review.applyTime,
+      '审核意见': review.reviewRemark || '无',
+      '审核时间': review.reviewTime || '—'
+    }))
+    
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '年审记录')
+    
+    // 导出文件
+    const fileName = `年审记录_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
 }
 </script>
 

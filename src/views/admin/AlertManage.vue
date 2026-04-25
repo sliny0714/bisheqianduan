@@ -172,22 +172,48 @@ const getAlertList = async () => {
   try {
     const res = await request.get('/alert/admin/list', {
       params: {
-        pageNum: currentPage.value,
-        pageSize: pageSize.value,
+        pageNum: 1, // 获取所有数据以便过滤
+        pageSize: 1000, // 设置足够大的值
         supplierName: searchKeyword.value,
         isRead: isReadFilter.value
       }
     })
     
     if (res.code === 200) {
-      alertList.value = res.data.records || []
-      total.value = res.data.total || 0
+      const allAlerts = res.data.records || []
       
-      // 调试：查看第一个预警的结构
+      // 按供应商分组，只保留每个供应商最新的预警
+      const supplierAlertsMap = new Map()
+      
+      allAlerts.forEach(alert => {
+        const supplierName = alert.supplierName
+        if (!supplierAlertsMap.has(supplierName)) {
+          supplierAlertsMap.set(supplierName, alert)
+        } else {
+          const existingAlert = supplierAlertsMap.get(supplierName)
+          // 比较创建时间，保留最新的
+          if (new Date(alert.createTime) > new Date(existingAlert.createTime)) {
+            supplierAlertsMap.set(supplierName, alert)
+          }
+        }
+      })
+      
+      // 将 Map 转换为数组
+      const filteredAlerts = Array.from(supplierAlertsMap.values())
+      
+      // 按创建时间倒序排序
+      filteredAlerts.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+      
+      // 处理分页
+      const start = (currentPage.value - 1) * pageSize.value
+      const end = start + pageSize.value
+      alertList.value = filteredAlerts.slice(start, end)
+      total.value = filteredAlerts.length
+      
+      // 调试：查看过滤后的数据
       if (alertList.value.length > 0) {
-        console.log('First alert data:', alertList.value[0])
-        console.log('Alert keys:', Object.keys(alertList.value[0]))
-        console.log('Alert level:', alertList.value[0].level)
+        console.log('Filtered alerts count:', filteredAlerts.length)
+        console.log('First filtered alert:', alertList.value[0])
       }
     }
   } catch (error) {

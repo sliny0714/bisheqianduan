@@ -281,12 +281,9 @@
             <el-tag type="success" size="small">当前已上传：资质文件</el-tag>
           </div>
         </el-form-item>
-        <el-form-item label="审核状态" prop="auditStatus" v-if="!isEdit">
-          <el-select v-model="formData.auditStatus" style="width:100%">
-            <el-option label="待审核" :value="0"></el-option>
-            <el-option label="已通过" :value="1"></el-option>
-            <el-option label="已驳回" :value="2"></el-option>
-          </el-select>
+        <el-form-item label="审核状态" v-if="!isEdit">
+          <el-tag type="info">待审核</el-tag>
+          <input type="hidden" v-model="formData.auditStatus">
         </el-form-item>
       </el-form>
       <template #footer>
@@ -304,6 +301,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import { addSupplier, updateSupplier } from '../../api/user/supplier'
 import * as XLSX from 'xlsx'
 
 const loading = ref(false)
@@ -362,8 +360,8 @@ const formRules = {
   ],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }],
   businessScope: [{ required: true, message: '请输入经营范围', trigger: 'blur' }],
-  registeredCapital: [{ required: true, message: '请输入注册资本', trigger: 'blur' }],
-  establishDate: [{ required: true, message: '请选择成立日期', trigger: 'change' }]
+  registeredCapital: [],
+  establishDate: []
 }
 
 const getSuppliersList = async () => {
@@ -508,29 +506,48 @@ const handleEdit = (row) => {
 const handleSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
-  const url = isEdit.value ? '/supplier/update' : '/supplier/add'
-  const fd = new FormData()
-
-  const fields = [
-    'id','name','creditCode','legalRep','industry','contactPerson',
-    'contactPhone','address','businessScope','registeredCapital',
-    'establishDate','externalNews','financialSnapshot','auditStatus','userId'
-  ]
-  fields.forEach(k => {
-    if (formData[k] != null && formData[k] !== '') {
-      fd.append(k, formData[k])
-    }
-  })
-
+  
+  // 构建请求数据
+  const requestData = {
+    name: formData.name,
+    creditCode: formData.creditCode,
+    legalRep: formData.legalRep,
+    industry: formData.industry,
+    contactPerson: formData.contactPerson,
+    contactPhone: formData.contactPhone,
+    address: formData.address,
+    businessScope: formData.businessScope,
+    registeredCapital: formData.registeredCapital.toString().replace(/[^0-9.]/g, ''),
+    establishDate: formData.establishDate,
+    externalNews: formData.externalNews,
+    financialSnapshot: formData.financialSnapshot
+  }
+  
+  // 处理资质文件
   const qualificationString = getQualificationString()
   if (qualificationString) {
-    fd.append('qualificationFile', qualificationString)
+    requestData.qualificationFile = qualificationString
   } else if (isEdit.value && oldQualificationPath.value) {
-    fd.append('qualificationFile', oldQualificationPath.value)
+    requestData.qualificationFile = oldQualificationPath.value
   }
 
+  // 编辑模式需要添加id和auditStatus
+  if (isEdit.value) {
+    requestData.id = formData.id
+    requestData.auditStatus = formData.auditStatus
+  }
+
+  console.log('是否编辑模式:', isEdit.value)
+  console.log('formData.id:', formData.id)
+  console.log('请求数据:', requestData)
+  console.log('用户ID:', formData.userId)
+
   try {
-    await request.post(url, fd)
+    if (isEdit.value) {
+      await updateSupplier(requestData, formData.userId)
+    } else {
+      await addSupplier(requestData, formData.userId)
+    }
     ElMessage.success('保存成功')
     formDialogVisible.value = false
     getSuppliersList()
@@ -540,10 +557,17 @@ const handleSubmit = async () => {
 }
 
 const handleDelete = async (row) => {
-  await ElMessageBox.confirm('确定删除？')
-  await request.get('/supplier/delete', { params: { id: row.id } })
-  ElMessage.success('删除成功')
-  getSuppliersList()
+  try {
+    await ElMessageBox.confirm('确定删除？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
+    })
+    await request.get('/supplier/delete', { params: { id: row.id } })
+    ElMessage.success('删除成功')
+    getSuppliersList()
+  } catch (error) {
+    // 捕获用户取消操作，不做任何处理
+  }
 }
 
 const openQualificationFile = () => {
@@ -562,7 +586,10 @@ const isMultipleFiles = (file) => {
 }
 
 const handleApprove = async (row) => {
-  const { value } = await ElMessageBox.prompt('请输入通过理由', '审核通过')
+  const { value } = await ElMessageBox.prompt('请输入通过理由', '审核通过', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
   if (!value) return
   await request.post('/supplier/audit', {}, {
     params: { id: row.id, auditStatus: 1, auditRemark: value, auditUserId: 1 }
@@ -573,7 +600,10 @@ const handleApprove = async (row) => {
 }
 
 const handleReject = async (row) => {
-  const { value } = await ElMessageBox.prompt('请输入驳回理由', '审核驳回')
+  const { value } = await ElMessageBox.prompt('请输入驳回理由', '审核驳回', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
   if (!value) return
   await request.post('/supplier/audit', {}, {
     params: { id: row.id, auditStatus: 2, auditRemark: value, auditUserId: 1 }
@@ -584,7 +614,10 @@ const handleReject = async (row) => {
 }
 
 const handleCancelQualification = async (row) => {
-  const { value } = await ElMessageBox.prompt('请输入取消资质理由', '取消资质')
+  const { value } = await ElMessageBox.prompt('请输入取消资质理由', '取消资质', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
   if (!value) return
   await request.post('/supplier/audit', {}, {
     params: { id: row.id, auditStatus: 2, auditRemark: '[取消资质] ' + value, auditUserId: 1 }

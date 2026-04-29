@@ -1,5 +1,5 @@
 <template>
-  <div class="supplier-detail-container">
+  <UserLayout>
     <!-- 面包屑导航 -->
     <el-breadcrumb class="breadcrumb" separator="/">
       <el-breadcrumb-item :to="{ path: '/home' }">首页</el-breadcrumb-item>
@@ -43,13 +43,23 @@
               {{ getAuditStatusText(supplierDetail.auditStatus) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="资质文件">
-            <el-tag
-              :type="supplierDetail.qualificationFile ? 'success' : 'info'"
-              effect="dark"
-            >
-              {{ supplierDetail.qualificationFile ? '已上传 ✅' : '未上传 ❌' }}
-            </el-tag>
+          <el-descriptions-item label="资质文件" :span="3">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <template v-if="supplierDetail.qualificationFile && supplierDetail.qualificationFile.trim()">
+                <template v-for="(url, index) in supplierDetail.qualificationFile.split(',')" :key="index">
+                  <el-link
+                    :href="url.startsWith('http') ? url : 'http://localhost:8080' + (url.startsWith('/') ? url : '/' + url)"
+                    target="_blank"
+                    type="primary"
+                  >
+                    {{ index === 0 ? '营业执照' : index === 1 ? '法定代表人身份证' : '账户信息' }}
+                  </el-link>
+                </template>
+              </template>
+              <el-tag v-else type="warning" effect="dark" size="small">
+                未上传
+              </el-tag>
+            </div>
           </el-descriptions-item>
           <el-descriptions-item label="地址" :span="3">{{ supplierDetail.address }}</el-descriptions-item>
           <el-descriptions-item label="经营范围" :span="3">{{ supplierDetail.businessScope }}</el-descriptions-item>
@@ -86,13 +96,14 @@
         <el-button type="primary" @click="handleEdit">编辑</el-button>
       </div>
     </template>
-  </div>
+  </UserLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getSupplierDetail } from '../../api/user/supplier'
+import UserLayout from './layout/UserLayout.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -163,6 +174,8 @@ const getAuditStatusType = (status) => {
 
 
 
+
+
 // 返回列表
 const handleBack = () => {
   router.push('/supplier/my/list')
@@ -175,12 +188,6 @@ const handleEdit = () => {
 </script>
 
 <style scoped>
-.supplier-detail-container {
-  padding: 24px;
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
-}
-
 /* 面包屑 */
 .breadcrumb {
   margin-bottom: 20px;
@@ -296,10 +303,6 @@ const handleEdit = () => {
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .supplier-detail-container {
-    padding: 16px;
-  }
-  
   .card-header {
     flex-direction: column;
     align-items: flex-start;

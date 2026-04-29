@@ -85,7 +85,7 @@
         <!-- 评估时间，为空时显示 - -->
         <el-table-column prop="assessTime" label="评估时间" width="180">
           <template #default="scope">
-            {{ scope.row.assessTime ?? '-' }}
+            {{ scope.row.assessTime ? formatDate(scope.row.assessTime) : '-' }}
           </template>
         </el-table-column>
 
@@ -157,7 +157,7 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="评估摘要">{{ currentRisk.summary }}</el-descriptions-item>
-        <el-descriptions-item label="评估时间">{{ currentRisk.assessTime ?? '-' }}</el-descriptions-item>
+        <el-descriptions-item label="评估时间">{{ currentRisk.assessTime ? formatDate(currentRisk.assessTime) : '-' }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <span class="dialog-footer">
@@ -176,6 +176,7 @@ import { ElMessage } from 'element-plus'
 import { Search, View, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 // 加载状态
 const loading = ref(false)

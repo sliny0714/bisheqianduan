@@ -74,7 +74,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column prop="createTime" label="创建时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <el-button
@@ -160,11 +164,12 @@
 
 <script setup>
 import AdminLayout from './layout/AdminLayout.vue'
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Edit, Delete, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -261,10 +266,15 @@ const handleSubmit = async () => {
 }
 
 const handleDelete = (row) => {
-  ElMessageBox.confirm('确定删除？').then(async () => {
+  ElMessageBox.confirm('确定删除？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  }).then(async () => {
     await request({ url: '/user/delete', method: 'get', params: { id: row.id } })
     ElMessage.success('删除成功')
     getUserList()
+  }).catch(() => {
+    // 捕获用户取消操作，不做任何处理
   })
 }
 

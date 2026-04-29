@@ -62,7 +62,77 @@ export const getPerformanceList = (params) => {
   })
 }
 
+// ===================== 合同管理模块（管理员） =====================
 
+// 获取合同列表
+export const getContractList = (params) => {
+  return request({
+    url: '/contract/list',
+    method: 'get',
+    params
+  })
+}
 
+// 获取合同详情
+export const getContractDetail = (id) => {
+  return request({
+    url: `/contract/detail/${id}`,
+    method: 'get'
+  })
+}
 
+// 创建合同
+export const createContract = (data) => {
+  return request({
+    url: '/contract/save',
+    method: 'post',
+    data
+  })
+}
+
+// 更新合同
+export const updateContract = (data) => {
+  return request({
+    url: '/contract/update',
+    method: 'post',
+    data
+  })
+}
+
+// 删除合同
+export const deleteContract = (id) => {
+  return request({
+    url: `/contract/delete/${id}`,
+    method: 'delete'
+  })
+}
+
+// 根据供应商ID获取合同
+export const getContractBySupplierId = (supplierId) => {
+  return request({
+    url: `/contract/supplier/${supplierId}`,
+    method: 'get'
+  })
+}
+
+// 终止合同
+export const terminateContract = (id) => {
+  return request({
+    url: `/contract/terminate/${id}`,
+    method: 'post'
+  })
+}
+
+// 审核合同（通过/驳回）
+export const auditContract = (data) => {
+  return request({
+    url: '/contract/admin/audit',
+    method: 'post',
+    params: {
+      id: data.id,
+      status: data.status,
+      remark: data.remark
+    }
+  })
+}
 

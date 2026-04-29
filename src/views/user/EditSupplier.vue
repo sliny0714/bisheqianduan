@@ -276,10 +276,8 @@ const rules = {
   ],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }],
   businessScope: [{ required: true, message: '请输入经营范围', trigger: 'blur' }],
-  registeredCapital: [
-    { required: true, message: '请输入注册资本(万元)', trigger: 'blur' },
-  ],
-  establishDate: [{ required: true, message: '请选择成立日期', trigger: 'blur' }]
+  registeredCapital: [],
+  establishDate: []
 }
 
 // 加载数据
@@ -336,36 +334,39 @@ const getQualificationString = () => {
   return [fileUrl1.value, fileUrl2.value, fileUrl3.value].filter(Boolean).join(',')
 }
 
-// 最终修复：完全匹配后端 @RequestParam
 const handleSubmit = async () => {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     submitting.value = true
     try {
-      const formData = new FormData()
-      formData.append('id', form.id)
-      formData.append('name', form.name)
-      formData.append('creditCode', form.creditCode)
-      formData.append('legalRep', form.legalRep)
-      formData.append('industry', form.industry)
-      formData.append('contactPerson', form.contactPerson)
-      formData.append('contactPhone', form.contactPhone)
-      formData.append('address', form.address)
-      formData.append('businessScope', form.businessScope)
-      formData.append('registeredCapital', form.registeredCapital)
-      formData.append('establishDate', form.establishDate)
-      formData.append('externalNews', form.externalNews || '')
-      formData.append('financialSnapshot', form.financialSnapshot || '')
-      formData.append('auditStatus', form.auditStatus)
-      formData.append('userId', form.userId)
-
-      // 拼接好的三个文件路径字符串
-      const qs = getQualificationString()
-      if (qs) {
-        formData.append('qualificationFile', qs)
+      // 构建请求数据
+      const requestData = {
+        id: form.id,
+        name: form.name,
+        creditCode: form.creditCode,
+        legalRep: form.legalRep,
+        industry: form.industry,
+        contactPerson: form.contactPerson,
+        contactPhone: form.contactPhone,
+        address: form.address,
+        businessScope: form.businessScope,
+        registeredCapital: form.registeredCapital.toString().replace(/[^0-9.]/g, ''),
+        establishDate: form.establishDate,
+        externalNews: form.externalNews,
+        financialSnapshot: form.financialSnapshot,
+        auditStatus: form.auditStatus
+      }
+      
+      // 处理资质文件
+      const qualificationString = getQualificationString()
+      if (qualificationString) {
+        requestData.qualificationFile = qualificationString
       }
 
-      const res = await updateSupplier(formData, form.userId)
+      console.log('请求数据:', requestData)
+      console.log('用户ID:', form.userId)
+
+      const res = await updateSupplier(requestData, form.userId)
       if (res.code === 200) {
         ElMessage.success('修改成功')
         router.push('/supplier/my/list')

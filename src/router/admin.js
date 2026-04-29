@@ -3,7 +3,9 @@ import SupplierManage from '../views/admin/SupplierManage.vue'
 import RiskManage from '../views/admin/RiskManage.vue'
 import AlertManage from '../views/admin/AlertManage.vue'
 import UserManage from '../views/admin/UserManage.vue'
+import ContractManage from '../views/admin/ContractManage.vue'
 import AdminProfile from '../views/admin/AdminProfile.vue'
+import DocManage from '../views/admin/DocManage.vue'
 
 import AnnualReviewManage from '../views/admin/AnnualReviewManage.vue'
 import OrderManage from '../views/admin/OrderManage.vue'
@@ -41,6 +43,12 @@ const adminRoutes = [
     component: UserManage,
     meta: { requiresAuth: true, requiresAdmin: true }
   },
+  {
+    path: '/admin/contract',
+    name: 'ContractManage',
+    component: ContractManage,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
 
   {
     path: '/admin/annual',
@@ -71,7 +79,14 @@ const adminRoutes = [
     name: 'AdminProfile',
     component: AdminProfile,
     meta: { requiresAuth: true, requiresAdmin: true }
-  }
+  },
+  {
+    path: '/admin/doc-manage',
+    name: 'DocManage',
+    component: DocManage,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+
 ]
 
 export default adminRoutes

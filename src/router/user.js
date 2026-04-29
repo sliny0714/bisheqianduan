@@ -12,6 +12,8 @@ import MyWarning from '../views/user/MyWarning.vue'
 import MyAnnualReview from '../views/user/MyAnnualReview.vue'
 import MyOrder from '../views/user/MyOrder.vue'
 import MyPerformance from '../views/user/MyPerformance.vue'
+import MyContract from '../views/user/MyContract.vue'
+
 
 const userRoutes = [
   {
@@ -89,6 +91,12 @@ const userRoutes = [
     path: '/performance/my',
     name: 'MyPerformance',
     component: MyPerformance,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/contract/my',
+    name: 'MyContract',
+    component: MyContract,
     meta: { requiresAuth: true }
   }
 ]

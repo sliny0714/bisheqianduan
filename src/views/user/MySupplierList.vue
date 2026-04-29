@@ -65,33 +65,7 @@
           </template>
         </el-table-column>
 
-        <!-- 资质文件列 -->
-        <el-table-column label="资质文件" min-width="280">
-          <template #default="scope">
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <template v-if="scope.row.qualificationFile && scope.row.qualificationFile.trim()">
-                <el-tag
-                  v-for="(item, idx) in parseFiles(scope.row.qualificationFile)"
-                  :key="idx"
-                  :type="item.type"
-                  effect="dark"
-                  size="small"
-                >
-                  <a 
-                    :href="item.url" 
-                    target="_blank" 
-                    style="color:white; text-decoration:none;"
-                  >
-                    {{ item.name }}
-                  </a>
-                </el-tag>
-              </template>
-              <el-tag v-else type="warning" effect="dark" size="small">
-                未上传
-              </el-tag>
-            </div>
-          </template>
-        </el-table-column>
+
 
         <el-table-column prop="createTime" label="提交时间" width="180" />
         <el-table-column label="操作" width="280" fixed="right">
@@ -145,32 +119,7 @@ const loading = ref(false)
 const suppliersList = ref([])
 const searchKeyword = ref('')
 
-const parseFiles = (qf) => {
-  // 如果没有资质文件，返回空数组
-  if (!qf) return []
 
-  // 按逗号分隔，过滤空值
-  const arr = qf.split(',').filter(u => u.trim())
-
-  // 文件类型，类型可以扩展
-  const types = ['success', 'warning', 'info']
-  
-  // 文件名，这里默认对应的是营业执照、法人身份证和账户信息
-  const names = ['营业执照', '法人身份证', '账户信息']
-
-  // 处理每个文件路径，构造出完整的URL以及文件名称和类型
-  return arr.map((url, i) => {
-    // 生成文件的完整URL
-    const fileUrl = 'http://localhost:8080/uploads/' + url
-
-    // 返回文件对象，包括文件的URL、名称以及类型
-    return {
-      url: fileUrl,  // 文件的完整URL
-      name: names[i] || '资质文件',  // 默认的文件名称
-      type: types[i] || 'info'  // 默认的文件类型
-    }
-  })
-}
 
 
 onMounted(() => {
@@ -246,7 +195,9 @@ const handleDetail = (id) => router.push(`/supplier/detail/${id}`)
 const handleEdit = (id) => router.push(`/supplier/edit/${id}`)
 const handleDelete = (id) => {
   ElMessageBox.confirm('确定删除？', '警告', {
-    type: 'warning'
+    type: 'warning',
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
   }).then(async () => {
     const res = await deleteSupplier(id)
     if (res.code === 200) {

@@ -137,7 +137,7 @@
                     :file-list="fileList1"
                     name="qualificationFile"
                     :on-success="(res) => handleUploadSuccess(res, 1)"
-                    :on-change="(file) => { file1.value = file.raw }"
+                    :on-change="(file) => { if (file && file.raw) file1.value = file.raw }"
                     :on-remove="() => { fileUrl1.value = ''; file1.value = null }"
                     :limit="1"
                     accept=".jpg,.png,.pdf"
@@ -155,7 +155,7 @@
                     :file-list="fileList2"
                     name="qualificationFile"
                     :on-success="(res) => handleUploadSuccess(res, 2)"
-                    :on-change="(file) => { file2.value = file.raw }"
+                    :on-change="(file) => { if (file && file.raw) file2.value = file.raw }"
                     :on-remove="() => { fileUrl2.value = ''; file2.value = null }"
                     :limit="1"
                     accept=".jpg,.png,.pdf"
@@ -173,7 +173,7 @@
                     :file-list="fileList3"
                     name="qualificationFile"
                     :on-success="(res) => handleUploadSuccess(res, 3)"
-                    :on-change="(file) => { file3.value = file.raw }"
+                    :on-change="(file) => { if (file && file.raw) file3.value = file.raw }"
                     :on-remove="() => { fileUrl3.value = ''; file3.value = null }"
                     :limit="1"
                     accept=".jpg,.png,.pdf"
@@ -228,10 +228,17 @@ const handleUploadSuccess = (res, type) => {
   if (res.code === 200) {
     if (Array.isArray(res.data)) {
       url = res.data[0]
-    } else {
+      console.log('上传返回数组，取第一个元素:', url)
+    } else if (res.data) {
       url = res.data
+      console.log('上传返回非数组:', url)
+    } else {
+      console.log('上传返回数据为空')
     }
+  } else {
+    console.log('上传返回code不是200:', res.code)
   }
+  console.log('最终url:', url)
   if (!url) {
     ElMessage.error('获取文件地址失败')
     return
@@ -241,14 +248,17 @@ const handleUploadSuccess = (res, type) => {
   if (type === 1) {
     fileUrl1.value = url
     fileList1.value = [{ name: '营业执照', url: url }] // 新增这行
+    console.log('设置fileUrl1:', fileUrl1.value)
   }
   if (type === 2) {
     fileUrl2.value = url
     fileList2.value = [{ name: '法定代表人身份证', url: url }] // 新增这行
+    console.log('设置fileUrl2:', fileUrl2.value)
   }
   if (type === 3) {
     fileUrl3.value = url
     fileList3.value = [{ name: '账户信息', url: url }] // 新增这行
+    console.log('设置fileUrl3:', fileUrl3.value)
   }
   
   ElMessage.success('上传成功')
@@ -297,10 +307,8 @@ const rules = {
   ],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }],
   businessScope: [{ required: true, message: '请输入经营范围', trigger: 'blur' }],
-  registeredCapital: [
-    { required: true, message: '请输入注册资本', trigger: 'blur' },
-  ],
-  establishDate: [{ required: true, message: '请选择成立日期', trigger: 'blur' }]
+  registeredCapital: [],
+  establishDate: []
 }
 
 onMounted(() => {
@@ -319,42 +327,31 @@ const handleSubmit = async () => {
       console.log('提交前的fileUrl2:', fileUrl2.value)
       console.log('提交前的fileUrl3:', fileUrl3.value)
       
-      // 检查是否有文件被上传
-      if (!qualificationFileString) {
-        console.log('警告：资质文件字符串为空')
-        ElMessage.warning('请至少上传一个资质文件')
-        loading.value = false
-        return
+      // 构建请求数据
+      const requestData = {
+        name: form.name,
+        creditCode: form.creditCode,
+        legalRep: form.legalRep,
+        industry: form.industry,
+        contactPerson: form.contactPerson,
+        contactPhone: form.contactPhone,
+        address: form.address,
+        businessScope: form.businessScope,
+        registeredCapital: form.registeredCapital.toString().replace(/[^0-9.]/g, ''),
+        establishDate: form.establishDate,
+        externalNews: form.externalNews,
+        financialSnapshot: form.financialSnapshot
       }
       
-      // 根据后端API要求，使用FormData上传文件
-      const formData = new FormData()
-      formData.append('name', form.name)
-      formData.append('creditCode', form.creditCode)
-      formData.append('legalRep', form.legalRep)
-      formData.append('industry', form.industry)
-      formData.append('contactPerson', form.contactPerson)
-      formData.append('contactPhone', form.contactPhone)
-      formData.append('address', form.address)
-      formData.append('businessScope', form.businessScope)
-      formData.append('registeredCapital', form.registeredCapital)
-      formData.append('establishDate', form.establishDate)
-      formData.append('externalNews', form.externalNews || '')
-      formData.append('financialSnapshot', form.financialSnapshot || '')
-      formData.append('auditStatus', 0)
-      formData.append('userId', form.userId)
+      // 处理资质文件
+      if (qualificationFileString) {
+        requestData.qualificationFile = qualificationFileString
+      }
+
+      console.log('请求数据:', requestData)
+      console.log('用户ID:', form.userId)
       
-      // 直接添加文件对象，而不是文件路径字符串
-      if (file1.value) formData.append('qualificationFile', file1.value)
-      if (file2.value) formData.append('qualificationFile', file2.value)
-      if (file3.value) formData.append('qualificationFile', file3.value)
-      
-      console.log('提交的FormData:', formData)
-      console.log('提交的文件1:', file1.value)
-      console.log('提交的文件2:', file2.value)
-      console.log('提交的文件3:', file3.value)
-      
-      const res = await addSupplier(formData, form.userId)
+      const res = await addSupplier(requestData, form.userId)
       console.log('提交响应:', res)
       if (res.code === 200) {
         ElMessage.success('提交成功')

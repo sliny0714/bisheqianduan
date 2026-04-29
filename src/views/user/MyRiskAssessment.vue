@@ -10,6 +10,12 @@
       <p class="page-description">风险评估由管理员发起，您可在此查看评估结果</p>
     </div>
 
+    <div class="search-bar">
+      <el-input v-model="searchKeyword" placeholder="搜索供应商名称" style="width: 300px; margin-right: 12px;"></el-input>
+      <el-button type="primary" @click="handleSearch">搜索</el-button>
+      <el-button @click="handleReset">重置</el-button>
+    </div>
+
     <el-card class="table-card">
       <template #header>
         <div class="card-header">
@@ -21,7 +27,7 @@
         </div>
       </template>
 
-      <el-table v-loading="loading" :data="assessmentList" border stripe>
+      <el-table v-loading="loading" :data="filteredAssessmentList" border stripe>
         <el-table-column prop="supplierName" label="供应商名称" min-width="180" />
         <el-table-column label="资质文件" width="120">
           <template #default="scope">
@@ -45,8 +51,8 @@
         </el-table-column>
       </el-table>
 
-      <div class="empty-text" v-if="!loading && assessmentList.length === 0">
-        暂无符合条件的供应商（需上传资质并审核通过）
+      <div class="empty-text" v-if="!loading && filteredAssessmentList.length === 0">
+        {{ searchKeyword ? '没有找到匹配的供应商' : '暂无符合条件的供应商（需上传资质并审核通过）' }}
       </div>
     </el-card>
 
@@ -82,6 +88,8 @@ const detailDialogVisible = ref(false)
 const currentAssessment = ref(null)
 const suppliers = ref([])
 const assessmentList = ref([])
+const searchKeyword = ref('')
+const filteredAssessmentList = ref([])
 
 onMounted(() => {
   loadSuppliers()
@@ -139,7 +147,31 @@ const loadAssessmentData = async () => {
   }
 
   assessmentList.value = arr
+  filterAssessmentList()
   loading.value = false
+}
+
+// 过滤评估列表
+const filterAssessmentList = () => {
+  if (!searchKeyword.value) {
+    filteredAssessmentList.value = assessmentList.value
+  } else {
+    const keyword = searchKeyword.value.toLowerCase()
+    filteredAssessmentList.value = assessmentList.value.filter(item => 
+      item.supplierName.toLowerCase().includes(keyword)
+    )
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  filterAssessmentList()
+}
+
+// 重置
+const handleReset = () => {
+  searchKeyword.value = ''
+  filterAssessmentList()
 }
 
 const handleViewDetail = (row) => {
@@ -198,6 +230,11 @@ const exportToExcel = async () => {
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 22px; font-weight: 600; color: #1e293b; }
 .page-description { font-size:14px; color:#64748b; }
+.search-bar {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
 .table-card { border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
 .detail-box { padding:10px 0; }

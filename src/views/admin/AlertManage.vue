@@ -99,23 +99,11 @@
         </el-descriptions-item>
 
         <el-descriptions-item label="预警内容">{{ currentAlert.alertContent }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="currentAlert.isRead === 0 ? 'danger' : 'info'" effect="light">
-            {{ currentAlert.isRead === 0 ? '未读' : '已读' }}
-          </el-tag>
-        </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentAlert.createTime }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="detailDialogVisible = false">关闭</el-button>
-          <el-button
-            v-if="currentAlert && currentAlert.isRead === 0"
-            type="success"
-            @click="handleMarkReadInDialog"
-          >
-            标记已读
-          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -195,7 +183,6 @@ const getAlertList = async () => {
         level: assessment.level,
         alertType: assessment.level + '风险预警',
         alertContent: `供应商【${assessment.supplierName}】风险等级为【${assessment.level}】，请及时处理！`,
-        isRead: 0, // 默认未读
         createTime: assessment.assessTime || assessment.createTime
       }))
       
@@ -247,6 +234,8 @@ const getRiskLevelTag = (level) => {
   }
   return map[level] || 'info'
 }
+
+
 </script>
 
 <style scoped>

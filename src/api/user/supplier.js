@@ -2,16 +2,13 @@ import request from '../request'
 
 // 新增供应商
 export const addSupplier = (supplierData, userId) => {
-  // 如果supplierData是FormData对象，直接传递，否则使用普通对象
   return request({
     url: '/supplier/add',
     method: 'post',
-    data: supplierData,
     params: {
-      userId
-    },
-    // 当数据是FormData时，让浏览器自动设置Content-Type
-    headers: supplierData instanceof FormData ? {} : { 'Content-Type': 'application/json' }
+      userId,
+      ...supplierData
+    }
   })
 }
 
@@ -44,12 +41,10 @@ export const updateSupplier = (supplierData, userId) => {
   return request({
     url: '/supplier/update',
     method: 'post',
-    data: supplierData,
     params: {
-      userId
-    },
-    // 当数据是FormData时，让浏览器自动设置Content-Type
-    headers: supplierData instanceof FormData ? {} : { 'Content-Type': 'application/json' }
+      userId,
+      ...supplierData
+    }
   })
 }
 

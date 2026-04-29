@@ -38,6 +38,10 @@
             <el-icon class="menu-icon"><User /></el-icon>
             <span class="menu-text">用户管理</span>
           </el-menu-item>
+          <el-menu-item index="/admin/contract">
+            <el-icon class="menu-icon"><Document /></el-icon>
+            <span class="menu-text">合同管理</span>
+          </el-menu-item>
           <el-menu-item index="/admin/profile">
             <el-icon class="menu-icon"><UserFilled /></el-icon>
             <span class="menu-text">个人中心</span>
@@ -58,6 +62,10 @@
           <el-menu-item index="/admin/log">
             <el-icon class="menu-icon"><Timer /></el-icon>
             <span class="menu-text">系统操作日志</span>
+          </el-menu-item>
+          <el-menu-item index="/admin/doc-manage">
+            <el-icon class="menu-icon"><Folder /></el-icon>
+            <span class="menu-text">文档知识库管理</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -105,6 +113,9 @@
         </el-main>
       </el-container>
     </el-container>
+    
+    <!-- 悬浮AI小助手 -->
+    <AIFloatingAssistant />
   </div>
 </template>
 
@@ -112,7 +123,8 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { House, Box, DataAnalysis, User, UserFilled, ArrowDown, Management, Clock, Warning, Document, Calendar, ShoppingCart, Star, Timer } from '@element-plus/icons-vue'
+import { House, Box, DataAnalysis, User, UserFilled, ArrowDown, Management, Clock, Warning, Document, Calendar, ShoppingCart, Star, Timer, Folder, Message } from '@element-plus/icons-vue'
+import AIFloatingAssistant from '../../../components/AIFloatingAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -130,12 +142,15 @@ const updateBreadcrumb = (path) => {
     '/admin/risk': '风险评估管理',
     '/admin/alert': '风险预警管理',
     '/admin/user': '用户管理',
+    '/admin/contract': '合同管理',
     '/admin/profile': '个人中心',
     '/admin/qual': '资质管理',
     '/admin/annual': '年审管理',
     '/admin/order': '订单管理',
     '/admin/performance': '绩效考核',
-    '/admin/log': '系统操作日志'
+    '/admin/log': '系统操作日志',
+    '/admin/doc-manage': '文档知识库管理',
+    '/admin/chat-assistant': '智能小助手'
   }
   breadcrumbItem.value = pathMap[path] || ''
 }

@@ -55,7 +55,6 @@
               @keyup.enter="handleSearch"
             />
             <el-select v-model="statusFilter" placeholder="审核状态" clearable style="width: 150px">
-              <el-option label="待提交" :value="0" />
               <el-option label="待审核" :value="1" />
               <el-option label="已通过" :value="2" />
               <el-option label="已驳回" :value="3" />
@@ -85,9 +84,17 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="applyTime" label="提交时间" width="180" />
+        <el-table-column prop="applyTime" label="提交时间" width="180">
+          <template #default="scope">
+            {{ scope.row.applyTime ? formatDate(scope.row.applyTime) : '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="reviewRemark" label="审核意见" min-width="200" />
-        <el-table-column prop="reviewTime" label="审核时间" width="180" />
+        <el-table-column prop="reviewTime" label="审核时间" width="180">
+          <template #default="scope">
+            {{ scope.row.reviewTime ? formatDate(scope.row.reviewTime) : '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <div class="action-group">
@@ -173,9 +180,9 @@
             {{ getStatusText(currentReview?.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="提交时间">{{ currentReview?.applyTime }}</el-descriptions-item>
+        <el-descriptions-item label="提交时间">{{ currentReview?.applyTime ? formatDate(currentReview.applyTime) : '-' }}</el-descriptions-item>
         <el-descriptions-item label="审核意见" :span="2">{{ currentReview?.reviewRemark || '无' }}</el-descriptions-item>
-        <el-descriptions-item label="审核时间" :span="2">{{ currentReview?.reviewTime || '待审核' }}</el-descriptions-item>
+        <el-descriptions-item label="审核时间" :span="2">{{ currentReview?.reviewTime ? formatDate(currentReview.reviewTime) : '待审核' }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
@@ -190,6 +197,7 @@ import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getAnnualReviewList, auditAnnualReview } from '../../api/admin/business'
+import { formatDate } from '../../utils/date'
 
 const currentYear = new Date().getFullYear()
 const years = computed(() => {

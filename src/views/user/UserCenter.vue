@@ -133,7 +133,9 @@ const handleLogout = () => {
     localStorage.removeItem('user')
     ElMessage.success('退出成功')
     router.push('/login')
-  }).catch(() => {})
+  }).catch(() => {
+    // 捕获用户取消操作，不做任何处理
+  })
 }
 </script>
 

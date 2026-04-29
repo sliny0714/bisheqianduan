@@ -96,5 +96,69 @@ export const getMyPerformanceHistory = (params) => {
     method: 'get',
     params
   })
+}
 
+// ===================== 合同管理模块 =====================
+
+// 获取合同列表（用户端只能看到自己创建的合同）
+export const getUserContractList = (params) => {
+  return request({
+    url: '/contract/list',
+    method: 'get',
+    params
+  })
+}
+
+// 获取合同详情
+export const getContractDetail = (id) => {
+  return request({
+    url: `/contract/detail/${id}`,
+    method: 'get'
+  })
+}
+
+// 保存合同（新增/修改）
+export const saveContract = (data) => {
+  return request({
+    url: '/contract/save',
+    method: 'post',
+    data
+  })
+}
+
+// 获取用户自己的供应商列表（用于下拉框选择）
+export const getSupplierList = (userId) => {
+  return request({
+    url: '/supplier/my/list',
+    method: 'get',
+    params: { userId: userId, pageNum: 1, pageSize: 1000 }
+  })
+}
+
+// 上传合同附件
+export const uploadContractFile = (formData) => {
+  return request({
+    url: '/contract/upload',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 获取30天内到期的合同数量
+export const getExpiringContractCount = () => {
+  return request({
+    url: '/contract/expiring/count',
+    method: 'get'
+  })
+}
+
+// 终止合同
+export const terminateContract = (id) => {
+  return request({
+    url: `/contract/terminate/${id}`,
+    method: 'post'
+  })
 }

@@ -2,7 +2,7 @@
   <UserLayout>
     <el-breadcrumb class="breadcrumb" separator="/">
       <el-breadcrumb-item :to="{ path: '/home' }">首页</el-breadcrumb-item>
-      <el-breadcrumb-item>年审管理</el-breadcrumb-item>
+      <el-breadcrumb-item>商务管理</el-breadcrumb-item>
       <el-breadcrumb-item>我的年审</el-breadcrumb-item>
     </el-breadcrumb>
 
@@ -20,6 +20,12 @@
         <el-icon><DocumentAdd /></el-icon>
         提交{{ currentYear }}年年审
       </el-button>
+    </div>
+
+    <div class="search-bar">
+      <el-input v-model="searchKeyword" placeholder="搜索供应商名称" style="width: 300px; margin-right: 12px;"></el-input>
+      <el-button type="primary" @click="handleSearch">搜索</el-button>
+      <el-button @click="handleReset">重置</el-button>
     </div>
 
     <el-card class="table-card">
@@ -152,6 +158,7 @@ const supplierList = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const searchKeyword = ref('')
 const dialogVisible = ref(false)
 const resultDialogVisible = ref(false)
 const submitting = ref(false)
@@ -180,7 +187,8 @@ const getAnnualReviews = async () => {
     const res = await getMyAnnualReviewList({
       userId: user.id,
       pageNum: currentPage.value,
-      pageSize: pageSize.value
+      pageSize: pageSize.value,
+      keyword: searchKeyword.value
     })
     annualReviewList.value = res.data?.records || []
     total.value = res.data?.total || 0
@@ -190,6 +198,17 @@ const getAnnualReviews = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  currentPage.value = 1
+  getAnnualReviews()
+}
+
+const handleReset = () => {
+  searchKeyword.value = ''
+  currentPage.value = 1
+  getAnnualReviews()
 }
 
 const getSuppliers = async () => {
@@ -255,7 +274,9 @@ const handleConfirmSubmit = async () => {
 const handleDelete = async (id) => {
   try {
     await ElMessageBox.confirm('确定撤回？', '提示', {
-      type: 'warning'
+      type: 'warning',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
     })
     const user = JSON.parse(localStorage.getItem('user'))
     const res = await withdrawAnnualReview(id, user.id)
@@ -317,6 +338,11 @@ const exportToExcel = async () => {
 .breadcrumb { margin-bottom: 20px; }
 .page-header { margin-bottom: 24px; }
 .action-bar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.search-bar {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
 .table-card { border-radius: 12px; }
 .empty-text { padding: 40px 0; text-align: center; color: #909399; }
 .pagination { margin-top: 16px; display: flex; justify-content: flex-end; }

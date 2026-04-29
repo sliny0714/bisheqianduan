@@ -2,42 +2,102 @@
   <UserLayout>
     <el-breadcrumb class="breadcrumb" separator="/">
       <el-breadcrumb-item :to="{ path: '/home' }">首页</el-breadcrumb-item>
-      <el-breadcrumb-item>订单管理</el-breadcrumb-item>
+      <el-breadcrumb-item>商务管理</el-breadcrumb-item>
       <el-breadcrumb-item>我的订单</el-breadcrumb-item>
     </el-breadcrumb>
 
     <div class="page-header">
       <h1 class="page-title">我的订单</h1>
       <p class="page-description">查看和管理您的订单信息</p>
+      <div class="divider"></div>
     </div>
 
-    <el-card class="table-card">
+    <div class="search-bar">
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索供应商名称"
+        style="width: 320px; margin-right: 12px;"
+        clearable
+        @clear="handleSearch"
+        @keyup.enter="handleSearch"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <el-button type="primary" @click="handleSearch">
+        <el-icon><Search /></el-icon>
+        搜索
+      </el-button>
+      <el-button @click="handleReset">
+        <el-icon><Refresh /></el-icon>
+        重置
+      </el-button>
+      <el-button type="success" @click="exportToExcel" style="margin-left: auto;">
+        <el-icon><Download /></el-icon>
+        导出
+      </el-button>
+    </div>
+
+    <el-card class="table-card" shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>订单记录</span>
-          <el-button type="success" @click="exportToExcel" :icon="Download">导出</el-button>
+          <span class="header-title">订单记录</span>
+          <div class="header-stats">
+            <el-badge :value="total" type="primary" />
+            <span class="stats-text">条订单</span>
+          </div>
         </div>
       </template>
-      <el-table v-loading="loading" :data="orderList" border stripe>
-        <el-table-column prop="orderNo" label="订单编号" min-width="220" />
-        <el-table-column prop="supplierName" label="供应商名称" min-width="180" />
-        <el-table-column prop="orderType" label="订单类型" min-width="150" />
+      <el-table
+        v-loading="loading"
+        :data="orderList"
+        border
+        stripe
+        style="width: 100%"
+        :row-class-name="getRowClass"
+      >
+        <el-table-column prop="orderNo" label="订单编号" min-width="220">
+          <template #default="scope">
+            <span class="order-no">{{ scope.row.orderNo }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="supplierName" label="供应商名称" min-width="180">
+          <template #default="scope">
+            <span class="supplier-name">{{ scope.row.supplierName }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="orderType" label="订单类型" width="140">
+          <template #default="scope">
+            <el-tag type="info" effect="light" size="small">
+              {{ scope.row.orderType }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="amount" label="金额" width="120">
           <template #default="scope">
-            <span style="color: #f56c6c; font-weight: 600;">¥{{ scope.row.amount }}</span>
+            <span class="amount">¥{{ scope.row.amount }}</span>
           </template>
         </el-table-column>
 
         <el-table-column prop="status" label="支付状态" width="120">
           <template #default="scope">
-            <el-tag :type="scope.row.status === 1 ? 'success' : 'warning'" effect="dark">
+            <el-tag :type="scope.row.status === 1 ? 'success' : 'warning'" effect="dark" size="small">
               {{ scope.row.status === 1 ? '已支付' : '未支付' }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="payTime" label="支付时间" width="180" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column prop="payTime" label="支付时间" width="200">
+          <template #default="scope">
+            <span class="time">{{ scope.row.payTime || '—' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="200">
+          <template #default="scope">
+            <span class="time">{{ scope.row.createTime }}</span>
+          </template>
+        </el-table-column>
 
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="scope">
@@ -62,7 +122,12 @@
       </el-table>
 
       <div class="empty-text" v-if="!loading && orderList.length === 0">
-        暂无订单数据
+        <el-empty
+          :description="{
+            'default': '暂无订单数据',
+            'search': '没有找到匹配的订单'
+          }[searchKeyword ? 'search' : 'default']"
+        />
       </div>
 
       <div class="pagination">
@@ -74,6 +139,7 @@
           :total="total"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
+          background
         />
       </div>
     </el-card>
@@ -108,7 +174,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Download } from '@element-plus/icons-vue'
+import { Download, Search, Refresh } from '@element-plus/icons-vue'
 import UserLayout from './layout/UserLayout.vue'
 import { getMyOrderList, getAlipayForm } from '../../api/user/business'
 import * as XLSX from 'xlsx'
@@ -120,9 +186,15 @@ const orderList = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const searchKeyword = ref('')
 
 const payDialogVisible = ref(false)
 const currentOrder = ref(null)
+
+// 根据订单状态获取行样式
+const getRowClass = ({ row }) => {
+  return row.status === 1 ? 'paid-row' : 'unpaid-row'
+}
 
 onMounted(() => {
   getOrders()
@@ -152,7 +224,8 @@ const getOrders = async () => {
     const res = await getMyOrderList({
       userId,
       pageNum: currentPage.value,
-      pageSize: pageSize.value
+      pageSize: pageSize.value,
+      supplierName: searchKeyword.value
     })
 
     if (res.code === 200) {
@@ -167,6 +240,17 @@ const getOrders = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  currentPage.value = 1
+  getOrders()
+}
+
+const handleReset = () => {
+  searchKeyword.value = ''
+  currentPage.value = 1
+  getOrders()
 }
 
 const handlePay = (order) => {
@@ -307,6 +391,21 @@ const exportToExcel = async () => {
 .page-header {
   margin-bottom: 32px;
 }
+.divider {
+  margin-top: 16px;
+  height: 1px;
+  background-color: #e2e8f0;
+  width: 100%;
+}
+.search-bar {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
 .page-title {
   font-size: 24px;
   font-weight: 600;
@@ -319,12 +418,58 @@ const exportToExcel = async () => {
 }
 .table-card {
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+}
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.header-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stats-text {
+  font-size: 14px;
+  color: #64748b;
+}
+.order-no {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #334155;
+}
+.supplier-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+.amount {
+  color: #f56c6c;
+  font-weight: 600;
+  font-size: 14px;
+}
+.time {
+  font-size: 13px;
+  color: #64748b;
+}
+.paid-row {
+  background-color: rgba(103, 194, 58, 0.05) !important;
+}
+.unpaid-row {
+  background-color: rgba(230, 162, 60, 0.05) !important;
+}
+.el-table tr:hover {
+  background-color: rgba(59, 130, 246, 0.05) !important;
 }
 .empty-text {
-  padding: 40px 0;
+  padding: 60px 0;
   text-align: center;
-  color: #909399;
 }
 .pagination {
   margin-top: 20px;

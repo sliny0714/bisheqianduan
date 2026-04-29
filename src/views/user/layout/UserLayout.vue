@@ -63,6 +63,7 @@
             <el-menu-item index="/annual/my">我的年审</el-menu-item>
             <el-menu-item index="/order/my">我的订单</el-menu-item>
             <el-menu-item index="/performance/my">我的绩效</el-menu-item>
+            <el-menu-item index="/contract/my">我的合同</el-menu-item>
           </el-sub-menu>
           <el-menu-item index="/settings/profile">
             <el-icon><Setting /></el-icon>
@@ -76,6 +77,9 @@
         <slot></slot>
       </el-main>
     </el-container>
+    
+    <!-- 悬浮AI小助手 -->
+    <AIFloatingAssistant />
   </div>
 </template>
 
@@ -89,9 +93,13 @@ import {
   House,
   UserFilled,
   Warning,
-  FolderOpened
+  FolderOpened,
+  Message,
+  Bell,
+  Setting
 } from '@element-plus/icons-vue'
 import request from '../../../api/request'
+import AIFloatingAssistant from '../../../components/AIFloatingAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()

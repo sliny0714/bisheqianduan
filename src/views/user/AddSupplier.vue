@@ -1,25 +1,31 @@
 <template>
-  <div class="add-supplier-container">
+  <UserLayout>
+    <!-- 面包屑导航 -->
     <el-breadcrumb class="breadcrumb" separator="/">
       <el-breadcrumb-item :to="{ path: '/home' }">首页</el-breadcrumb-item>
       <el-breadcrumb-item :to="{ path: '/supplier/my/list' }">我的供应商管理</el-breadcrumb-item>
       <el-breadcrumb-item>新增供应商</el-breadcrumb-item>
     </el-breadcrumb>
 
+    <!-- 页面标题 -->
     <div class="page-header">
       <h1 class="page-title">新增供应商</h1>
       <p class="page-description">填写供应商信息，提交后等待审核</p>
     </div>
 
-    <el-card class="form-card">
+    <!-- 表单卡片 -->
+    <el-card class="form-card" shadow="hover">
+      <template #header>
+        <span class="header-title">供应商信息</span>
+      </template>
       <el-form
         :model="form"
         :rules="rules"
         ref="formRef"
         label-width="140px"
         class="supplier-form"
-        :max-width="800"
       >
+        <!-- 基础信息 -->
         <el-divider content-position="left">基础信息</el-divider>
         <el-row :gutter="20">
           <el-col :span="12">
@@ -44,6 +50,7 @@
           </el-col>
         </el-row>
 
+        <!-- 联系信息 -->
         <el-divider content-position="left">联系信息</el-divider>
         <el-row :gutter="20">
           <el-col :span="12">
@@ -68,6 +75,7 @@
           </el-col>
         </el-row>
 
+        <!-- 工商详细信息 -->
         <el-divider content-position="left">工商详细信息</el-divider>
         <el-row :gutter="20">
           <el-col :span="24">
@@ -105,6 +113,7 @@
           </el-col>
         </el-row>
 
+        <!-- 补充信息 -->
         <el-divider content-position="left">补充信息</el-divider>
         <el-row :gutter="20">
           <el-col :span="24">
@@ -188,6 +197,7 @@
           </el-col>
         </el-row>
 
+        <!-- 操作按钮 -->
         <el-form-item>
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
@@ -196,7 +206,7 @@
         </el-form-item>
       </el-form>
     </el-card>
-  </div>
+  </UserLayout>
 </template>
 
 <script setup>
@@ -204,6 +214,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { addSupplier } from '../../api/user/supplier'
+import UserLayout from './layout/UserLayout.vue'
 
 const router = useRouter()
 const formRef = ref(null)
@@ -244,20 +255,19 @@ const handleUploadSuccess = (res, type) => {
     return
   }
   
-  
   if (type === 1) {
     fileUrl1.value = url
-    fileList1.value = [{ name: '营业执照', url: url }] // 新增这行
+    fileList1.value = [{ name: '营业执照', url: url }]
     console.log('设置fileUrl1:', fileUrl1.value)
   }
   if (type === 2) {
     fileUrl2.value = url
-    fileList2.value = [{ name: '法定代表人身份证', url: url }] // 新增这行
+    fileList2.value = [{ name: '法定代表人身份证', url: url }]
     console.log('设置fileUrl2:', fileUrl2.value)
   }
   if (type === 3) {
     fileUrl3.value = url
-    fileList3.value = [{ name: '账户信息', url: url }] // 新增这行
+    fileList3.value = [{ name: '账户信息', url: url }]
     console.log('设置fileUrl3:', fileUrl3.value)
   }
   
@@ -372,29 +382,79 @@ const handleCancel = () => {
 </script>
 
 <style scoped>
+/* 面包屑 */
+.breadcrumb {
+  margin-bottom: 20px;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.page-description {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 表单卡片 */
+.form-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* 供应商表单 */
+.supplier-form {
+  padding: 10px 0;
+}
+
+/* 资质文件上传 */
 .qualification-group {
   display: flex;
   flex-direction: column;
   gap: 15px;
 }
+
 .qualification-item {
   display: flex;
   align-items: center;
   gap: 15px;
 }
+
 .label-text {
   width: 130px;
   font-weight: 500;
 }
-.add-supplier-container {
-  padding: 24px;
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
+
+/* 表单操作 */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
 }
-.breadcrumb { margin-bottom: 20px; }
-.page-header { margin-bottom: 32px; }
-.page-title { font-size: 24px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
-.form-card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
-.supplier-form { max-width: 800px; margin: 0 auto; padding: 20px 0; }
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}
 </style>

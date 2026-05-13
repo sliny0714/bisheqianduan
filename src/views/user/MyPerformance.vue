@@ -39,7 +39,7 @@
           {{ currentPerformance.assessor || '系统' }}
         </el-descriptions-item>
         <el-descriptions-item label="评估时间">
-          {{ currentPerformance.createTime }}
+          {{ formatDate(currentPerformance.createTime) }}
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -136,9 +136,9 @@
             <span class="assessor">{{ scope.row.assessor || '系统' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="评估时间" width="200">
+        <el-table-column label="评估时间" width="200">
           <template #default="scope">
-            <span class="time">{{ scope.row.createTime }}</span>
+            <span class="time">{{ formatDate(scope.row.createTime) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -174,6 +174,7 @@ import { Download, Search, Refresh } from '@element-plus/icons-vue'
 import { getMyPerformance, getMyPerformanceHistory } from '../../api/user/business'
 import UserLayout from './layout/UserLayout.vue'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 const loading = ref(false)
 const currentPerformance = ref(null)

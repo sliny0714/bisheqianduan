@@ -1,7 +1,7 @@
 <template>
   <admin-layout>
     <div>
-      <el-card header="文档知识库管理">
+      <el-card header="知识库管理">
         <!-- 上传区域 -->
         <div class="upload-section">
           <el-input v-model="uploadTitle" placeholder="请输入文档标题" style="width: 300px; margin-bottom: 20px;" />

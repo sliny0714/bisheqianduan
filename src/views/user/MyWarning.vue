@@ -69,8 +69,8 @@
         </el-table-column>
         <el-table-column prop="level" label="风险等级" width="100">
           <template #default="scope">
-            <el-tag :type="getRiskLevelTag(scope.row.level || '未知')" effect="light" size="small">
-              {{ scope.row.level || '未知' }}
+            <el-tag :type="getRiskLevelTag(scope.row.level || scope.row.riskLevel || '未知')" effect="light" size="small">
+              {{ scope.row.level || scope.row.riskLevel || '未知' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -81,9 +81,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="200">
+        <el-table-column label="创建时间" width="200">
           <template #default="scope">
-            <span class="create-time">{{ scope.row.createTime }}</span>
+            <span class="create-time">{{ formatDate(scope.row.createTime) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -120,6 +120,7 @@ import { Download, Search, Refresh } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import UserLayout from './layout/UserLayout.vue'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -135,15 +136,10 @@ onMounted(() => {
 
 const getList = async () => {
   loading.value = true
-  // 重置数据，避免缓存问题
-  warningsList.value = []
-  filteredWarningsList.value = []
-  total.value = 0
   try {
     const user = JSON.parse(localStorage.getItem('user'))
     if (!user) return ElMessage.error('请先登录')
 
-    // 1. 获取用户自己的供应商列表
     const supplierRes = await request.get('/supplier/my/list', {
       params: { userId: user.id, pageNum: 1, pageSize: 1000 }
     })
@@ -153,86 +149,64 @@ const getList = async () => {
       return
     }
     
-    const userSuppliers = supplierRes.data?.records || []
-    // 确保ID类型一致，转换为字符串
-    const userSupplierIds = new Set(userSuppliers.map(s => String(s.id)))
-    console.log('User suppliers:', userSuppliers)
-    console.log('User supplier IDs:', userSupplierIds)
-    console.log('User supplier IDs (detailed):', Array.from(userSupplierIds))
-    console.log('User suppliers length:', userSuppliers.length)
+    const suppliers = Array.isArray(supplierRes.data) ? supplierRes.data : supplierRes.data?.records || []
     
-    // 2. 从风险评估接口获取数据，与管理员端使用相同的数据源
-    const riskRes = await request.get('/risk/list', {
-      params: {
-        pageNum: 1, // 获取所有数据以便过滤
-        pageSize: 1000, // 设置足够大的值
-        supplierName: searchKeyword.value
-      }
-    })
+    const riskAlerts = []
     
-    if (riskRes.code === 200) {
-      const riskAssessments = riskRes.data?.records || []
-      console.log('Risk assessments:', riskAssessments)
-      
-      // 3. 过滤出用户自己的供应商的评估结果
-      const userAssessments = riskAssessments.filter(assessment => 
-        userSupplierIds.has(assessment.supplierId)
-      )
-      console.log('User assessments:', userAssessments)
-      
-      // 4. 过滤出风险等级为中或高的评估结果
-      const filteredAssessments = userAssessments.filter(assessment => {
-        const level = assessment.level
-        return level === '中' || level === '高'
-      })
-      console.log('Filtered assessments:', filteredAssessments)
-      
-      // 5. 按供应商分组，只保留每个供应商最新的评估结果
-      const supplierAssessmentsMap = new Map()
-      
-      filteredAssessments.forEach(assessment => {
-        const supplierName = assessment.supplierName
-        if (!supplierAssessmentsMap.has(supplierName)) {
-          supplierAssessmentsMap.set(supplierName, assessment)
-        } else {
-          const existingAssessment = supplierAssessmentsMap.get(supplierName)
-          // 比较评估时间，保留最新的
-          if (new Date(assessment.assessTime || assessment.createTime) > new Date(existingAssessment.assessTime || existingAssessment.createTime)) {
-            supplierAssessmentsMap.set(supplierName, assessment)
-          }
+    for (let supplier of suppliers) {
+      if (supplier.qualificationFile && supplier.auditStatus === 1) {
+        try {
+          const riskRes = await request.get('/risk/list', {
+            params: { supplierId: supplier.id }
+          })
+          
+            const riskRecords = Array.isArray(riskRes.data) ? riskRes.data : riskRes.data?.records || []
+            if (riskRecords.length > 0) {
+              riskRecords.sort((a, b) => {
+                const t1 = new Date(a.assessTime || a.createTime || 0)
+                const t2 = new Date(b.assessTime || b.createTime || 0)
+                return t2 - t1
+              })
+              
+              const latestAssessment = riskRecords[0]
+              const riskLevel = latestAssessment.level || latestAssessment.riskLevel
+              
+              if (riskLevel === '中' || riskLevel === '高') {
+                // 优先从风险评估数据获取供应商名称，其次从供应商数据获取（兼容 supplierName 和 name 字段）
+                const name = latestAssessment.supplierName || supplier.supplierName || supplier.name
+                riskAlerts.push({
+                  id: latestAssessment.id,
+                  supplierId: supplier.id,
+                  supplierName: name,
+                  level: riskLevel,
+                  alertType: riskLevel + '风险预警',
+                  alertContent: `供应商【${name}】风险等级为【${riskLevel}】，请及时处理！`,
+                  createTime: latestAssessment.assessTime || latestAssessment.createTime
+                })
+              }
+            }
+        } catch (error) {
+          console.error(`获取供应商 ${supplier.supplierName} 风险评估失败:`, error)
         }
-      })
-      
-      // 6. 将 Map 转换为数组
-      const finalAssessments = Array.from(supplierAssessmentsMap.values())
-      
-      // 7. 按评估时间倒序排序
-      finalAssessments.sort((a, b) => new Date(b.assessTime || b.createTime) - new Date(a.assessTime || a.createTime))
-      
-      // 8. 转换为预警数据结构
-      const filteredAlerts = finalAssessments.map(assessment => ({
-        id: assessment.id,
-        supplierId: assessment.supplierId,
-        supplierName: assessment.supplierName,
-        level: assessment.level,
-        alertType: assessment.level + '风险预警',
-        alertContent: `供应商【${assessment.supplierName}】风险等级为【${assessment.level}】，请及时处理！`,
-        isRead: 0, // 默认未读
-        createTime: assessment.assessTime || assessment.createTime
-      }))
-      console.log('Filtered alerts:', filteredAlerts)
-      
-      // 9. 处理分页
-      const start = (currentPage.value - 1) * pageSize.value
-      const end = start + pageSize.value
-      warningsList.value = filteredAlerts.slice(start, end)
-      total.value = filteredAlerts.length
-      
-      // 10. 过滤预警列表
-      filterWarningsList()
-      console.log('Filtered warnings:', filteredWarningsList.value)
-      console.log('Total:', total.value)
+      }
     }
+    
+    riskAlerts.sort((a, b) => new Date(b.createTime || 0) - new Date(a.createTime || 0))
+    
+    let filteredAlerts = riskAlerts
+    if (searchKeyword.value) {
+      const keyword = searchKeyword.value.toLowerCase()
+      filteredAlerts = riskAlerts.filter(item => 
+        item && item.supplierName && item.supplierName.toLowerCase().includes(keyword)
+      )
+    }
+    
+    total.value = filteredAlerts.length
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    warningsList.value = filteredAlerts.slice(start, end)
+    filteredWarningsList.value = warningsList.value
+    
   } catch (error) {
     ElMessage.error('获取预警列表失败')
     console.error('Error:', error)
@@ -241,49 +215,26 @@ const getList = async () => {
   }
 }
 
-// 过滤预警列表
-const filterWarningsList = () => {
-  // 确保warningsList是数组
-  const list = Array.isArray(warningsList.value) ? warningsList.value : []
-  if (!searchKeyword.value) {
-    filteredWarningsList.value = [...list]
-  } else {
-    const keyword = searchKeyword.value.toLowerCase()
-    filteredWarningsList.value = list.filter(item => 
-      item && item.supplierName && item.supplierName.toLowerCase().includes(keyword)
-    )
-  }
-  total.value = filteredWarningsList.value.length
-  console.log('filterWarningsList - warningsList:', list)
-  console.log('filterWarningsList - filteredWarningsList:', filteredWarningsList.value)
-  console.log('filterWarningsList - total:', total.value)
-  console.log('filterWarningsList - filteredWarningsList.length:', filteredWarningsList.value.length)
-}
-
-// 搜索
 const handleSearch = () => {
   currentPage.value = 1
   getList()
 }
 
-// 重置
 const handleReset = () => {
   searchKeyword.value = ''
   currentPage.value = 1
   getList()
 }
 
-// 获取预警类型样式
 const getAlertTypeClass = (alertType) => {
-  if (alertType.includes('高')) {
+  if (alertType?.includes('高')) {
     return 'danger'
-  } else if (alertType.includes('中')) {
+  } else if (alertType?.includes('中')) {
     return 'warning'
   }
   return 'info'
 }
 
-// 获取风险等级标签样式
 const getRiskLevelTag = (level) => {
   const map = {
     '高': 'danger',
@@ -293,8 +244,8 @@ const getRiskLevelTag = (level) => {
   return map[level] || 'info'
 }
 
-// 获取行样式
 const getRowClass = (row) => {
+  if (!row || !row.alertType) return ''
   if (row.alertType.includes('高')) {
     return 'high-risk-row'
   } else if (row.alertType.includes('中')) {
@@ -303,7 +254,6 @@ const getRowClass = (row) => {
   return ''
 }
 
-// 导出Excel功能
 const exportToExcel = async () => {
   try {
     if (warningsList.value.length === 0) {
@@ -311,7 +261,6 @@ const exportToExcel = async () => {
       return
     }
     
-    // 转换数据格式
     const exportData = warningsList.value.map(warning => ({
       '供应商名称': warning.supplierName,
       '预警类型': warning.alertType,
@@ -319,12 +268,10 @@ const exportToExcel = async () => {
       '创建时间': warning.createTime
     }))
     
-    // 创建工作簿和工作表
     const ws = XLSX.utils.json_to_sheet(exportData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '风险预警记录')
     
-    // 导出文件
     const fileName = `风险预警记录_${new Date().toISOString().split('T')[0]}.xlsx`
     XLSX.writeFile(wb, fileName)
     

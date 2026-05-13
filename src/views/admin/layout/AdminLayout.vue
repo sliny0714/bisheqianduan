@@ -65,7 +65,7 @@
           </el-menu-item>
           <el-menu-item index="/admin/doc-manage">
             <el-icon class="menu-icon"><Folder /></el-icon>
-            <span class="menu-text">文档知识库管理</span>
+            <span class="menu-text">知识库管理</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -149,7 +149,7 @@ const updateBreadcrumb = (path) => {
     '/admin/order': '订单管理',
     '/admin/performance': '绩效考核',
     '/admin/log': '系统操作日志',
-    '/admin/doc-manage': '文档知识库管理',
+    '/admin/doc-manage': '知识库管理',
     '/admin/chat-assistant': '智能小助手'
   }
   breadcrumbItem.value = pathMap[path] || ''

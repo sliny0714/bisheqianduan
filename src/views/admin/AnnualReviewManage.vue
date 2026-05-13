@@ -70,6 +70,16 @@
             <el-button type="primary" @click="handleSearch">搜索</el-button>
             <el-button @click="handleReset">重置</el-button>
           </div>
+          <div class="action-bar">
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -196,8 +206,10 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import { getAnnualReviewList, auditAnnualReview } from '../../api/admin/business'
 import { formatDate } from '../../utils/date'
+import * as XLSX from 'xlsx'
 
 const currentYear = new Date().getFullYear()
 const years = computed(() => {
@@ -329,6 +341,31 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (current) => {
   currentPage.value = current
   getAnnualReviews()
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (annualReviewList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  const exportData = annualReviewList.value.map(item => ({
+    'ID': item.id,
+    '供应商名称': item.supplierName,
+    '年审年份': item.reviewYear + '年',
+    '状态': getStatusText(item.status),
+    '提交时间': item.applyTime || '-',
+    '审核意见': item.reviewRemark || '无',
+    '审核时间': item.reviewTime || '-'
+  }))
+  
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(wb, ws, '年审列表')
+  XLSX.writeFile(wb, `年审列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 
 const pendingCount = computed(() => annualReviewList.value.filter(i => i.status === 1).length)

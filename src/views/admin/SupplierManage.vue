@@ -128,7 +128,7 @@
         <el-descriptions-item label="联系电话">{{ currentSupplier.contactPhone || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="地址" :span="2">{{ currentSupplier.address || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="注册资本">{{ currentSupplier.registeredCapital || '0' }}</el-descriptions-item>
-        <el-descriptions-item label="成立日期">{{ currentSupplier.establishDate || '未填写' }}</el-descriptions-item>
+        <el-descriptions-item label="成立日期">{{ formatDate(currentSupplier.establishDate) || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="经营范围" :span="2">{{ currentSupplier.businessScope || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="外部舆情" :span="2">{{ currentSupplier.externalNews || '无负面舆情' }}</el-descriptions-item>
         <el-descriptions-item label="财务快照" :span="2">{{ currentSupplier.financialSnapshot || '未填写' }}</el-descriptions-item>
@@ -138,7 +138,7 @@
               <template v-if="isMultipleFiles(currentSupplier.qualificationFile)">
                 <template v-for="(url, index) in currentSupplier.qualificationFile.split(',')" :key="index">
                   <el-link
-                    :href="url.startsWith('http') ? url : 'http://localhost:8080' + (url.startsWith('/') ? url : '/' + url)"
+                    :href="url.startsWith('http') ? url : '/upload' + (url.startsWith('/') ? '' : '/') + url"
                     target="_blank"
                     type="primary"
                   >
@@ -148,7 +148,7 @@
               </template>
               <template v-else>
                 <el-link
-                  :href="currentSupplier.qualificationFile.startsWith('http') ? currentSupplier.qualificationFile : 'http://localhost:8080' + (currentSupplier.qualificationFile.startsWith('/') ? currentSupplier.qualificationFile : '/' + currentSupplier.qualificationFile)"
+                  :href="currentSupplier.qualificationFile.startsWith('http') ? currentSupplier.qualificationFile : '/upload' + (currentSupplier.qualificationFile.startsWith('/') ? '' : '/') + currentSupplier.qualificationFile"
                   target="_blank"
                   type="primary"
                 >
@@ -160,8 +160,8 @@
           <el-tag v-else type="info">未上传</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="提交人">{{ currentSupplier.createByName || currentSupplier.userId || '未知' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentSupplier.createTime || '' }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ currentSupplier.updateTime || '' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDate(currentSupplier.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatDate(currentSupplier.updateTime) }}</el-descriptions-item>
 
         <el-descriptions-item label="审核状态" :span="2" style="background:#f9f9f9">
           <el-tag :type="getAuditStatusType(currentSupplier.auditStatus)" size="large">
@@ -170,7 +170,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="审核意见" :span="2">{{ currentSupplier.auditRemark || '暂无' }}</el-descriptions-item>
         <el-descriptions-item label="审核人">{{ currentSupplier.auditBy || (currentSupplier.auditUserId === 1 ? '管理员' : currentSupplier.auditUserId) || '暂无' }}</el-descriptions-item>
-        <el-descriptions-item label="审核时间">{{ currentSupplier.auditTime || '' }}</el-descriptions-item>
+        <el-descriptions-item label="审核时间">{{ formatDate(currentSupplier.auditTime) }}</el-descriptions-item>
       </el-descriptions>
 
       <template #footer>
@@ -303,6 +303,7 @@ import { Plus, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import { addSupplier, updateSupplier } from '../../api/user/supplier'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 const loading = ref(false)
 const currentPage = ref(1)
@@ -321,7 +322,7 @@ const formRef = ref(null)
 const submitting = ref(false)
 
 const oldQualificationPath = ref('')
-const uploadUrl = 'http://localhost:8080/supplier/test/upload'
+const uploadUrl = '/api/supplier/test/upload'
 const fileList1 = ref([])
 const fileList2 = ref([])
 const fileList3 = ref([])
@@ -577,7 +578,7 @@ const openQualificationFile = () => {
   }
   let url = currentSupplier.value.qualificationFile
   if (isMultipleFiles(url)) url = url.split(',')[0]
-  if (!url.startsWith('http')) url = 'http://localhost:8080' + (url.startsWith('/') ? url : '/' + url)
+  if (!url.startsWith('http')) url = '/upload' + (url.startsWith('/') ? '' : '/') + url
   window.open(encodeURI(url), '_blank')
 }
 

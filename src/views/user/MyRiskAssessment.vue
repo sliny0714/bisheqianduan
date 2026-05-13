@@ -123,19 +123,24 @@ const loadAssessmentData = async () => {
       const res = await request.get('/risk/list', {
         params: { supplierId: s.id }
       })
-      const list = res.data?.records || []
+      // 支持两种返回格式：直接数组或分页格式
+      const list = Array.isArray(res.data) ? res.data : res.data?.records || []
 
       if (list.length > 0) {
-        // 按时间排序取最新一条
-        list.sort((a, b) => new Date(b.assessTime) - new Date(a.assessTime))
+        // 按时间排序取最新一条（处理assessTime为null的情况）
+        list.sort((a, b) => {
+          const timeA = a.assessTime || a.createTime || '1970-01-01'
+          const timeB = b.assessTime || b.createTime || '1970-01-01'
+          return new Date(timeB) - new Date(timeA)
+        })
         const latest = list[0]
 
-        latest.supplierName = s.name
+        latest.supplierName = s.supplierName || s.name
         latest.qualificationFile = s.qualificationFile
         arr.push(latest)
       } else {
         arr.push({
-          supplierName: s.name,
+          supplierName: s.supplierName || s.name,
           qualificationFile: s.qualificationFile,
           score: null,
           level: null,
@@ -143,7 +148,9 @@ const loadAssessmentData = async () => {
           assessTime: null
         })
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error(`获取供应商 ${s.supplierName || s.name} 评估数据失败:`, e)
+    }
   }
 
   assessmentList.value = arr

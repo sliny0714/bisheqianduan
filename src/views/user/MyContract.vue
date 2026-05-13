@@ -151,13 +151,10 @@
         <el-form-item label="结束日期" prop="endDate">
           <el-date-picker v-model="contractForm.endDate" type="date" placeholder="选择结束日期" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="contractForm.status" placeholder="请选择状态" style="width: 100%">
-            <el-option label="待审核" :value="0" />
-            <el-option label="已通过" :value="1" />
-            <el-option label="已终止" :value="2" />
-            <el-option label="已驳回" :value="3" />
-          </el-select>
+        <el-form-item label="状态">
+          <el-tag :type="getStatusType(contractForm.status)" effect="dark">
+            {{ getStatusText(contractForm.status) }}
+          </el-tag>
         </el-form-item>
         <el-form-item label="附件上传">
           <el-upload
@@ -263,8 +260,7 @@ const rules = {
   type: [{ required: true, message: '请输入合同类型', trigger: 'blur' }],
   amount: [{ required: true, message: '请输入合同金额', trigger: 'blur' }],
   startDate: [{ required: true, message: '请选择开始日期', trigger: 'change' }],
-  endDate: [{ required: true, message: '请选择结束日期', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+  endDate: [{ required: true, message: '请选择结束日期', trigger: 'change' }]
 }
 
 onMounted(() => {

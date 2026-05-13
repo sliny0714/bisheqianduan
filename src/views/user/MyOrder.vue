@@ -93,9 +93,9 @@
             <span class="time">{{ scope.row.payTime || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="200">
+        <el-table-column label="创建时间" width="200">
           <template #default="scope">
-            <span class="time">{{ scope.row.createTime }}</span>
+            <span class="time">{{ formatDate(scope.row.createTime) }}</span>
           </template>
         </el-table-column>
 
@@ -178,6 +178,7 @@ import { Download, Search, Refresh } from '@element-plus/icons-vue'
 import UserLayout from './layout/UserLayout.vue'
 import { getMyOrderList, getAlipayForm } from '../../api/user/business'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../../utils/date'
 
 const loading = ref(false)
 const paying = ref(false)

@@ -1,12 +1,10 @@
 <template>
   <div class="user-dashboard">
-    <!-- 页面标题 -->
     <div class="page-header">
       <h1 class="page-title">控制台</h1>
       <p class="page-description">欢迎回来，{{ userInfo.username }}！以下是您的系统概览。</p>
     </div>
 
-    <!-- 顶部统计卡片 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="12" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card stat-supplier">
@@ -54,7 +52,6 @@
       </el-col>
     </el-row>
 
-    <!-- 中间图表区域 -->
     <el-row :gutter="20" class="charts-row">
       <el-col :span="12">
         <el-card class="chart-card">
@@ -78,7 +75,6 @@
       </el-col>
     </el-row>
 
-    <!-- 底部柱状图 -->
     <el-row class="charts-row">
       <el-col :span="24">
         <el-card class="chart-card bar-chart-card">
@@ -92,7 +88,6 @@
       </el-col>
     </el-row>
 
-    <!-- 最新风险预警列表 -->
     <el-card class="alert-list-card">
       <template #header>
         <div class="chart-header">
@@ -118,13 +113,6 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="时间" width="180" />
-        <el-table-column label="状态" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.isRead === 0 ? 'danger' : 'info'" size="small">
-              {{ scope.row.isRead === 0 ? '未读' : '已读' }}
-            </el-tag>
-          </template>
-        </el-table-column>
       </el-table>
     </el-card>
   </div>
@@ -139,10 +127,8 @@ import request from '../../../api/request'
 
 const router = useRouter()
 
-// 当前用户信息
 const userInfo = ref({ username: 'user01' })
 
-// 统计数据
 const stats = reactive({
   supplierTotal: 0,
   pendingCount: 0,
@@ -150,10 +136,8 @@ const stats = reactive({
   unreadAlertCount: 0
 })
 
-// 预警列表
 const alertList = ref([])
 
-// 图表引用
 let auditChart = null
 let riskChart = null
 let alertChart = null
@@ -161,7 +145,6 @@ const auditChartRef = ref(null)
 const riskChartRef = ref(null)
 const alertChartRef = ref(null)
 
-// 获取预警类型标签
 const getAlertTypeTag = (type) => {
   const map = {
     '财务风险': 'warning',
@@ -171,7 +154,6 @@ const getAlertTypeTag = (type) => {
   return map[type] || 'info'
 }
 
-// 获取风险等级标签
 const getRiskLevelTag = (level) => {
   const map = {
     '高': 'danger',
@@ -181,23 +163,18 @@ const getRiskLevelTag = (level) => {
   return map[level] || 'info'
 }
 
-// 跳转到预警管理
 const goToAlertManage = () => {
   router.push('/risk/my/alert')
 }
 
-// 获取统计数据
 const fetchStats = async () => {
   try {
     const user = JSON.parse(localStorage.getItem('user'))
     if (!user) return
 
     const supplierRes = await request.get('/supplier/my/list', { params: { pageNum: 1, pageSize: 100, userId: user.id || 1 } })
-
-    // 适配后端返回格式
     const suppliers = Array.isArray(supplierRes.data) ? supplierRes.data : supplierRes.data?.records || []
     
-    // 获取风险数据
     let risks = []
     for (let supplier of suppliers) {
       if (supplier.qualificationFile && supplier.auditStatus === 1) {
@@ -207,8 +184,11 @@ const fetchStats = async () => {
           })
           const supplierRisks = Array.isArray(riskRes.data) ? riskRes.data : riskRes.data?.records || []
           if (supplierRisks.length > 0) {
-            // 按时间排序取最新一条
-            supplierRisks.sort((a, b) => new Date(b.assessTime) - new Date(a.assessTime))
+            supplierRisks.sort((a, b) => {
+              const t1 = new Date(a.assessTime || a.createTime || 0)
+              const t2 = new Date(b.assessTime || b.createTime || 0)
+              return t2 - t1
+            })
             risks.push(supplierRisks[0])
           }
         } catch (e) {
@@ -228,69 +208,51 @@ const fetchStats = async () => {
   }
 }
 
-// 获取预警列表
 const fetchAlertList = async () => {
   try {
     const user = JSON.parse(localStorage.getItem('user'))
     if (!user) return
 
-    // 从供应商列表获取供应商ID
     const supplierRes = await request.get('/supplier/my/list', { params: { pageNum: 1, pageSize: 100, userId: user.id || 1 } })
     const suppliers = Array.isArray(supplierRes.data) ? supplierRes.data : supplierRes.data?.records || []
     
-    // 获取所有供应商的风险评估数据
-    let allRiskAssessments = []
+    let supplierLatestRiskMap = new Map()
+
     for (let supplier of suppliers) {
-      if (supplier.qualificationFile && supplier.auditStatus === 1) {
-        try {
-          const riskRes = await request.get('/risk/list', {
-            params: { supplierId: supplier.id }
-          })
-          const supplierRisks = Array.isArray(riskRes.data) ? riskRes.data : riskRes.data?.records || []
-          allRiskAssessments = allRiskAssessments.concat(supplierRisks)
-        } catch (e) {
-          console.error('获取供应商风险数据失败:', e)
-        }
-      }
+      if (!supplier.qualificationFile || supplier.auditStatus !== 1) continue
+
+      const riskRes = await request.get('/risk/list', {
+        params: { supplierId: supplier.id }
+      })
+      const list = Array.isArray(riskRes.data) ? riskRes.data : riskRes.data?.records || []
+      if (!list.length) continue
+
+      list.sort((a, b) => {
+        const t1 = new Date(a.assessTime || a.createTime || 0)
+        const t2 = new Date(b.assessTime || b.createTime || 0)
+        return t2 - t1
+      })
+
+      supplierLatestRiskMap.set(supplier.id, list[0])
     }
-    
-    // 过滤出风险等级为中或高的评估结果
-    const filteredAssessments = allRiskAssessments.filter(assessment => {
-      const level = assessment.level
-      return level === '中' || level === '高'
-    })
-    
-    // 按供应商分组，只保留每个供应商最新的评估结果
-    const supplierAssessmentsMap = new Map()
-    filteredAssessments.forEach(assessment => {
-      const supplierName = assessment.supplierName
-      if (!supplierAssessmentsMap.has(supplierName)) {
-        supplierAssessmentsMap.set(supplierName, assessment)
-      } else {
-        const existingAssessment = supplierAssessmentsMap.get(supplierName)
-        // 比较评估时间，保留最新的
-        if (new Date(assessment.assessTime || assessment.createTime) > new Date(existingAssessment.assessTime || existingAssessment.createTime)) {
-          supplierAssessmentsMap.set(supplierName, assessment)
-        }
+
+    let finalAlerts = []
+    supplierLatestRiskMap.forEach(assessment => {
+      const level = assessment.level || assessment.riskLevel
+      if (level === '中' || level === '高') {
+        finalAlerts.push({
+          id: assessment.id,
+          supplierId: assessment.supplierId,
+          supplierName: assessment.supplierName,
+          level: level,
+          alertType: level + '风险预警',
+          alertContent: `供应商【${assessment.supplierName}】风险等级为【${level}】，请及时处理！`,
+          createTime: assessment.assessTime || assessment.createTime
+        })
       }
     })
-    
-    // 将 Map 转换为数组并按评估时间倒序排序
-    const finalAssessments = Array.from(supplierAssessmentsMap.values())
-    finalAssessments.sort((a, b) => new Date(b.assessTime || b.createTime) - new Date(a.assessTime || a.createTime))
-    
-    // 转换为预警数据结构
-    const finalAlerts = finalAssessments.map(assessment => ({
-      id: assessment.id,
-      supplierId: assessment.supplierId,
-      supplierName: assessment.supplierName,
-      level: assessment.level,
-      alertType: assessment.level + '风险预警',
-      alertContent: `供应商【${assessment.supplierName}】风险等级为【${assessment.level}】，请及时处理！`,
-      createTime: assessment.assessTime || assessment.createTime
-    }))
-    
-    // 只显示前10条
+
+    finalAlerts.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
     alertList.value = finalAlerts.slice(0, 10)
     updateAlertChart(alertList.value)
   } catch (error) {
@@ -298,7 +260,6 @@ const fetchAlertList = async () => {
   }
 }
 
-// 更新审核状态图表
 const updateAuditChart = (suppliers) => {
   if (!auditChart) {
     auditChart = echarts.init(auditChartRef.value)
@@ -353,7 +314,6 @@ const updateAuditChart = (suppliers) => {
   auditChart.setOption(option)
 }
 
-// 更新风险等级图表
 const updateRiskChart = (risks) => {
   if (!riskChart) {
     riskChart = echarts.init(riskChartRef.value)
@@ -408,13 +368,11 @@ const updateRiskChart = (risks) => {
   riskChart.setOption(option)
 }
 
-// 更新预警监控图表
 const updateAlertChart = (alerts) => {
   if (!alertChart) {
     alertChart = echarts.init(alertChartRef.value)
   }
 
-  // 只统计中高风险（因为传入的 alerts 已经是过滤后的中高风险数据）
   const medium = alerts.filter(a => a.level === '中' || a.riskLevel === '中').length
   const high = alerts.filter(a => a.level === '高' || a.riskLevel === '高').length
 
@@ -498,30 +456,24 @@ const updateAlertChart = (alerts) => {
   alertChart.setOption(option)
 }
 
-// 处理窗口大小变化
 const handleResize = () => {
   auditChart?.resize()
   riskChart?.resize()
   alertChart?.resize()
 }
 
-// 页面加载时获取数据
 onMounted(() => {
-  // 获取用户信息
   const user = JSON.parse(localStorage.getItem('user'))
   if (user) {
     userInfo.value = user
   }
   
-  // 获取统计数据和预警列表
   fetchStats()
   fetchAlertList()
   
-  // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
 })
 
-// 组件卸载时清理
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   auditChart?.dispose()
@@ -668,7 +620,6 @@ onUnmounted(() => {
   background-color: #fff5f5;
 }
 
-/* 响应式调整 */
 @media (max-width: 768px) {
   .stat-card {
     padding: 16px;

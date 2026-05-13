@@ -162,3 +162,14 @@ export const terminateContract = (id) => {
     method: 'post'
   })
 }
+
+// ===================== 用户账户模块 =====================
+
+// 用户修改密码
+export const updateUserPassword = (data) => {
+  return request({
+    url: '/user/update/password',
+    method: 'post',
+    data
+  })
+}

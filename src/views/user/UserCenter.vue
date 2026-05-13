@@ -12,15 +12,45 @@
       <p class="page-description">管理您的账户设置</p>
     </div>
 
-    <!-- 个人中心内容 -->
-    <el-card class="user-card">
-      <!-- 修改密码 -->
+    <!-- 用户信息卡片 -->
+    <el-card class="info-card" shadow="hover">
+      <template #header>
+        <span class="header-title">基本信息</span>
+      </template>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="用户名">
+          <span class="info-value">{{ userInfo.username }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="真实姓名">
+          <span class="info-value">{{ userInfo.realName || '未设置' }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="角色">
+          <el-tag :type="userInfo.role === 'ADMIN' ? 'danger' : 'primary'" effect="light">
+            {{ userInfo.role === 'ADMIN' ? '管理员' : '普通用户' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="账户状态">
+          <el-tag :type="userInfo.status === 1 ? 'success' : 'info'" effect="light">
+            {{ userInfo.status === 1 ? '启用' : '禁用' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="注册时间">
+          <span class="info-value">{{ formatDate(userInfo.createTime) || '未知' }}</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <!-- 修改密码卡片 -->
+    <el-card class="password-card" shadow="hover" style="margin-top: 24px;">
+      <template #header>
+        <span class="header-title">修改密码</span>
+      </template>
       <el-form
         :model="passwordForm"
         :rules="passwordRules"
         ref="passwordFormRef"
         label-width="120px"
-        class="user-form"
+        class="password-form"
       >
         <el-form-item label="旧密码" prop="oldPassword">
           <el-input
@@ -34,7 +64,7 @@
           <el-input
             v-model="passwordForm.newPassword"
             type="password"
-            placeholder="请输入新密码"
+            placeholder="请输入新密码（至少6位）"
             show-password
           />
         </el-form-item>
@@ -49,12 +79,16 @@
         <el-form-item>
           <div class="form-actions">
             <el-button @click="resetPasswordForm">重置</el-button>
-            <el-button type="primary" @click="updatePassword">修改密码</el-button>
+            <el-button type="primary" @click="updatePassword" :loading="submitting">
+              修改密码
+            </el-button>
           </div>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <!-- 退出登录 -->
+    <!-- 退出登录 -->
+    <el-card class="logout-card" shadow="hover" style="margin-top: 24px;">
       <div class="logout-section">
         <el-button type="danger" @click="handleLogout">退出登录</el-button>
       </div>
@@ -63,15 +97,28 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import UserLayout from './layout/UserLayout.vue'
+import { updateUserPassword } from '../../api/user/business'
+import { formatDate } from '../../utils/date'
 
 const router = useRouter()
 
+// 用户信息
+const userInfo = reactive({
+  id: '',
+  username: '',
+  realName: '',
+  role: '',
+  status: 1,
+  createTime: ''
+})
+
 // 密码表单
 const passwordFormRef = ref(null)
+const submitting = ref(false)
 const passwordForm = reactive({
   oldPassword: '',
   newPassword: '',
@@ -81,7 +128,10 @@ const passwordForm = reactive({
 // 密码表单验证规则
 const passwordRules = {
   oldPassword: [{ required: true, message: '请输入旧密码', trigger: 'blur' }],
-  newPassword: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+  ],
   confirmPassword: [
     { required: true, message: '请确认新密码', trigger: 'blur' },
     {
@@ -97,27 +147,51 @@ const passwordRules = {
   ]
 }
 
+// 初始化用户信息
+const initUserInfo = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    Object.assign(userInfo, user)
+  } catch (e) {
+    console.error('获取用户信息失败:', e)
+  }
+}
+
 // 重置密码表单
 const resetPasswordForm = () => {
   if (passwordFormRef.value) {
     passwordFormRef.value.resetFields()
   }
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
 }
 
 // 更新密码
 const updatePassword = async () => {
   if (!passwordFormRef.value) return
-  
+
   await passwordFormRef.value.validate(async (valid) => {
     if (valid) {
+      submitting.value = true
       try {
-        // 模拟更新密码
-        // 实际项目中应该调用后端接口更新密码
-        ElMessage.success('密码修改成功')
-        resetPasswordForm()
+        const res = await updateUserPassword({
+          userId: userInfo.id,
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword
+        })
+        if (res.code === 200) {
+          ElMessage.success('密码修改成功，请重新登录')
+          localStorage.removeItem('user')
+          router.push('/login')
+        } else {
+          ElMessage.error(res.msg || '修改密码失败')
+        }
       } catch (error) {
         console.error('修改密码失败:', error)
-        ElMessage.error('修改密码失败')
+        ElMessage.error('修改密码失败，请检查旧密码是否正确')
+      } finally {
+        submitting.value = false
       }
     }
   })
@@ -137,6 +211,10 @@ const handleLogout = () => {
     // 捕获用户取消操作，不做任何处理
   })
 }
+
+onMounted(() => {
+  initUserInfo()
+})
 </script>
 
 <style scoped>
@@ -162,16 +240,30 @@ const handleLogout = () => {
   color: #64748b;
 }
 
-/* 用户卡片 */
-.user-card {
+/* 信息卡片 */
+.info-card {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  padding: 24px;
 }
 
-/* 用户表单 */
-.user-form {
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.info-value {
+  font-weight: 500;
+  color: #475569;
+}
+
+/* 密码卡片 */
+.password-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.password-form {
   padding: 10px 0;
 }
 
@@ -183,29 +275,28 @@ const handleLogout = () => {
   margin-top: 24px;
 }
 
-/* 退出登录 */
+/* 退出登录卡片 */
+.logout-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 .logout-section {
-  margin-top: 32px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
+  padding: 16px 0;
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .user-card {
-    padding: 16px;
-  }
-  
   .form-actions {
     flex-direction: column;
   }
-  
+
   .form-actions button {
     width: 100%;
   }
-  
+
   .logout-section {
     justify-content: center;
   }

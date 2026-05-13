@@ -50,6 +50,14 @@
         <el-icon><Refresh /></el-icon>
         重置
       </el-button>
+      <el-dropdown style="margin-left: auto;">
+        <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
 
     <el-card class="table-card">
@@ -207,7 +215,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, View, Check, Close } from '@element-plus/icons-vue'
+import { Search, Refresh, View, Check, Close, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import AdminLayout from './layout/AdminLayout.vue'
 import { formatDate, formatDateOnly } from '../../utils/date'
@@ -217,6 +225,7 @@ import {
   auditContract,
   terminateContract
 } from '../../api/admin/business'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const detailDialogVisible = ref(false)
@@ -389,6 +398,35 @@ const getStatusText = (status) => {
     3: '已驳回'
   }
   return statusMap[status] || '未知'
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (contractList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  const exportData = contractList.value.map(item => ({
+    'ID': item.id,
+    '合同编号': item.contractNumber,
+    '合同标题': item.title,
+    '供应商': item.supplierName || '',
+    '合同类型': item.type || '',
+    '合同金额': item.amount || '0.00',
+    '开始日期': item.startDate || '',
+    '结束日期': item.endDate || '',
+    '状态': getStatusText(item.status),
+    '创建人': item.createdBy || '',
+    '创建时间': item.createdAt || ''
+  }))
+  
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(wb, ws, '合同列表')
+  XLSX.writeFile(wb, `合同列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 </script>
 

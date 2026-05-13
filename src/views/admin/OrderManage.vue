@@ -66,6 +66,16 @@
             <el-button type="primary" @click="handleSearch">搜索</el-button>
             <el-button @click="handleReset">重置</el-button>
           </div>
+          <div class="action-bar">
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -85,8 +95,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="payTime" label="支付时间" width="180" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="支付时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.payTime) || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="scope">
             <div class="action-group">
@@ -141,11 +159,11 @@
         </el-descriptions-item>
 
         <el-descriptions-item label="支付时间">
-          {{ currentOrder?.payTime || '待支付' }}
+          {{ formatDate(currentOrder?.payTime) || '待支付' }}
         </el-descriptions-item>
 
         <el-descriptions-item label="创建时间">
-          {{ currentOrder?.createTime || '无' }}
+          {{ formatDate(currentOrder?.createTime) || '无' }}
         </el-descriptions-item>
 
         <el-descriptions-item label="支付渠道">
@@ -173,7 +191,10 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import { getOrderList, getOrderDetail } from '../../api/admin/business'
+import { formatDate } from '../../utils/date'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const orderList = ref([])
@@ -266,6 +287,31 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (current) => {
   currentPage.value = current
   getOrders()
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (orderList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  const exportData = orderList.value.map(item => ({
+    '订单编号': item.orderNo,
+    '供应商名称': item.supplierName || '',
+    '订单类型': item.orderType || '',
+    '金额': item.amount || '0.00',
+    '支付状态': item.status === 1 ? '已支付' : '未支付',
+    '支付时间': item.payTime || '-',
+    '创建时间': item.createTime || ''
+  }))
+  
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(wb, ws, '订单列表')
+  XLSX.writeFile(wb, `订单列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 </script>
 

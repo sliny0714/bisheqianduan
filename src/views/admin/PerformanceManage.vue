@@ -111,6 +111,16 @@
             <el-button type="primary" @click="handleSearch">搜索</el-button>
             <el-button @click="handleReset">重置</el-button>
           </div>
+          <div class="action-bar">
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -133,7 +143,11 @@
         </el-table-column>
         <el-table-column prop="assessor" label="评估人" width="120" />
         <el-table-column prop="remark" label="备注" min-width="160" />
-        <el-table-column prop="createTime" label="评估时间" width="180" />
+        <el-table-column label="评估时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createTime) }}
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination">
@@ -156,9 +170,11 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Download } from '@element-plus/icons-vue'
 import { getPerformanceList, scorePerformance } from '../../api/admin/business'
 import { getSupplierList } from '../../api/admin/supplier'
+import { formatDate } from '../../utils/date'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -332,6 +348,33 @@ const handleSizeChange = (size) => {
 const handleCurrentChange = (current) => {
   currentPage.value = current
   getPerformances()
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (performanceList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  const exportData = performanceList.value.map(item => ({
+    '供应商名称': item.supplierName,
+    '质量评分': item.qualityScore || 0,
+    '交付评分': item.deliveryScore || 0,
+    '服务评分': item.serviceScore || 0,
+    '综合总分': item.totalScore || 0,
+    '评级': item.level || '待评',
+    '评估人': item.assessor || '',
+    '备注': item.remark || '',
+    '评估时间': item.createTime || ''
+  }))
+  
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(wb, ws, '绩效考核列表')
+  XLSX.writeFile(wb, `绩效考核列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 </script>
 

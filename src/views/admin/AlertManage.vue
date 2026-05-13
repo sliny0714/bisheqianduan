@@ -26,6 +26,16 @@
               <el-icon><Search /></el-icon> 搜索
             </el-button>
           </div>
+          <div class="action-bar">
+            <el-dropdown>
+              <el-button type="success"><el-icon><Download /></el-icon>导出</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="exportExcel">导出 Excel</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </template>
 
@@ -54,7 +64,11 @@
         </el-table-column>
 
         <el-table-column prop="alertContent" label="预警内容" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="创建时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="scope">
             <el-button
@@ -115,8 +129,10 @@
 import AdminLayout from './layout/AdminLayout.vue'
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, View, Check } from '@element-plus/icons-vue'
+import { Search, View, Download } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import { formatDate } from '../../utils/date'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const currentPage = ref(1)
@@ -233,6 +249,30 @@ const getRiskLevelTag = (level) => {
     '低': 'success'
   }
   return map[level] || 'info'
+}
+
+// 导出 Excel 功能
+const exportExcel = () => {
+  if (alertList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+  
+  const exportData = alertList.value.map(item => ({
+    'ID': item.id,
+    '供应商名称': item.supplierName,
+    '预警类型': item.alertType,
+    '风险等级': item.level || '未知',
+    '预警内容': item.alertContent,
+    '创建时间': item.createTime || ''
+  }))
+  
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+  XLSX.utils.book_append_sheet(wb, ws, '风险预警列表')
+  XLSX.writeFile(wb, `风险预警列表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  
+  ElMessage.success('导出成功')
 }
 
 

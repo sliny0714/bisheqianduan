@@ -120,7 +120,11 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="createTime" label="时间" width="180" />
+                <el-table-column label="时间" width="180">
+                  <template #default="scope">
+                    {{ formatDate(scope.row.createTime) }}
+                  </template>
+                </el-table-column>
                 <el-table-column label="状态" width="100">
                   <template #default="scope">
                     <el-tag :type="scope.row.isRead === 0 ? 'danger' : 'info'" size="small">
@@ -142,6 +146,7 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { House, Box, DataAnalysis, User, UserFilled, ArrowDown, Management, Clock, Warning, Document, Calendar, ShoppingCart, Star, Timer } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import { formatDate } from '../../utils/date'
 
 const router = useRouter()
 const route = useRoute()

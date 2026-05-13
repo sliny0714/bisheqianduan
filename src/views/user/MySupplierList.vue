@@ -67,7 +67,11 @@
 
 
 
-        <el-table-column prop="createTime" label="提交时间" width="180" />
+        <el-table-column label="提交时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="scope">
             <div class="action-buttons">
@@ -108,6 +112,7 @@ import { Plus, View, Edit, Delete, Search, Refresh, Download } from '@element-pl
 import { getMySupplierList, deleteSupplier } from '../../api/user/supplier'
 import request from '../../api/request'
 import UserLayout from './layout/UserLayout.vue'
+import { formatDate } from '../../utils/date'
 import * as XLSX from 'xlsx'
 
 const router = useRouter()
@@ -249,7 +254,7 @@ const exportToExcel = async () => {
       '联系人': supplier.contactPerson,
       '联系电话': supplier.contactPhone,
       '审核状态': getAuditStatusText(supplier.auditStatus),
-      '提交时间': supplier.createTime
+      '提交时间': formatDate(supplier.createTime)
     }))
     
     // 创建工作簿和工作表
